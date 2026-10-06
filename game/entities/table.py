@@ -144,11 +144,9 @@ class CafeTable:
                 # Блюдо готово на стойке у баристы, ждёт клика на стойку
                 order_items = getattr(self, "order_items", [self.menu_item] if getattr(self, "menu_item", None) else [])
                 if len(order_items) > 1:
-                    spr1 = get_item_sprite(order_items[0].get("id", 1))
-                    spr2 = get_item_sprite(order_items[1].get("id", 1))
-                    img1 = assets.image_by_height(spr1, 20)
-                    img2 = assets.image_by_height(spr2, 20)
-                    bw, bh = img1.get_width() + img2.get_width() + 18, 26
+                    from game.ui.dish_row import dish_images
+                    imgs = dish_images(order_items[:4], 20 if len(order_items) <= 2 else 16)
+                    bw, bh = sum(i.get_width() for i in imgs) + 6 * (len(imgs) - 1) + 14, 26
                     bx, by = x - bw // 2, y - 52 + bounce
                     badge = pygame.Surface((bw, bh + 5), pygame.SRCALPHA)
                     pygame.draw.rect(badge, C.WHITE, (0, 0, bw, bh), border_radius=8)
@@ -156,8 +154,10 @@ class CafeTable:
                     tail_pts = [(bw // 2 - 3, bh), (bw // 2 + 3, bh), (bw // 2, bh + 4)]
                     pygame.draw.polygon(badge, C.WHITE, tail_pts)
                     pygame.draw.polygon(badge, C.SAGE_GRAY, tail_pts, 1)
-                    badge.blit(img1, (6, (bh - img1.get_height()) // 2))
-                    badge.blit(img2, (img1.get_width() + 10, (bh - img2.get_height()) // 2))
+                    px = 7
+                    for im in imgs:
+                        badge.blit(im, (px, (bh - im.get_height()) // 2))
+                        px += im.get_width() + 6
                     surface.blit(badge, (bx, by))
                 else:
                     bw, bh = dish_img.get_width() + 14, 26

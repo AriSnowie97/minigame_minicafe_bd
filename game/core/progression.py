@@ -88,6 +88,7 @@ def get_day_config(day: int, upgrades: Dict[str, Any] = None) -> Dict[str, Any]:
 
     # 6. Офіціант (купується окремо в магазині)
     has_waiter = upgrades.get("waiter", False)
+    has_waiter2 = upgrades.get("waiter2", False)   # второй официант — работает только на террасе
 
     # 7. Дозволені столики (столики 1..4 — зал, 5..8 — літня тераса)
     if has_terrace:
@@ -111,6 +112,7 @@ def get_day_config(day: int, upgrades: Dict[str, Any] = None) -> Dict[str, Any]:
         "tip_mult": tip_mult,
         "has_terrace": has_terrace,
         "has_waiter": has_waiter,
+        "has_waiter2": has_waiter2,
         "can_order_two": can_order_two,
         "two_items_chance": two_items_chance,
     }

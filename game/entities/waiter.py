@@ -117,6 +117,8 @@ class Waiter:
         self.room = "hall"          # комната, где сейчас находится официант
         self.target_room = "hall"   # комната цели
         self.home_room = "hall"     # комната дежурного места
+        self.sprite_prefix = "cat_waiter"   # у второго официанта — "cat_waiter2"
+        self.handin_cb = None       # куда нести бланк заказа: callback(table) -> (x, y, комната)
 
         # Текущая позиция
         self.x = float(home_x)
@@ -296,11 +298,13 @@ class Waiter:
             self.state = WaiterState.IDLE
             if self.action_timer <= 0:
                 task.phase = "goto_counter"
-                self.target_x = self.pickup_x
-                self.target_y = self.pickup_y
-                self.target_room = "hall"
+                if self.handin_cb:
+                    hx, hy, hroom = self.handin_cb(task.table)
+                else:
+                    hx, hy, hroom = self.pickup_x, self.pickup_y, "hall"
+                self.target_x, self.target_y, self.target_room = hx, hy, hroom
                 self.state = WaiterState.WALK
-                self.say("Несу замовлення баристі! :3", duration=1.4)
+                self.say("Несу замовлення кухарю! :3" if hroom == "kitchen" else "Несу замовлення баристі! :3", duration=1.4)
 
         elif task.phase == "goto_counter":
             if not self._arrived():
@@ -481,20 +485,20 @@ class Waiter:
         # Покачивание
         if self.carrying_item:
             # Официант несёт поднос с заказом, как на втором макете пользователя
-            spr_name = "cat_waiter_serve"
+            spr_name = f"{self.sprite_prefix}_serve"
             bob = int(math.sin(self.anim_t * 6.0) * 1.5)
         elif self.state == WaiterState.WALK:
             bob = int(math.sin(self.anim_t * 12.0) * 2.5)
-            spr_name = "cat_waiter_walk"
+            spr_name = f"{self.sprite_prefix}_walk"
         elif self.state == WaiterState.SERVE:
             bob = int(math.sin(self.anim_t * 6.0) * 1.5)
-            spr_name = "cat_waiter_serve"
+            spr_name = f"{self.sprite_prefix}_serve"
         elif self.state == WaiterState.HAPPY:
             bob = int(math.sin(self.anim_t * 8.0) * 2.5)
-            spr_name = "cat_waiter_happy"
+            spr_name = f"{self.sprite_prefix}_happy"
         else:
             bob = int(math.sin(self.anim_t * 3.0) * 1.5)
-            spr_name = "cat_waiter_idle"
+            spr_name = f"{self.sprite_prefix}_idle"
 
         base_spr = assets.image_by_height(spr_name, target_h)
         sw, sh = base_spr.get_size()

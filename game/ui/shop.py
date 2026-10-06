@@ -23,6 +23,15 @@ SHOP_CATEGORIES = [
                 "icon": "cat_waiter_happy",
             },
             {
+                "id": "waiter2",
+                "name": "Другий офіціант",
+                "desc": "Працює лише на терасі: приймає замовлення й носить їх до баристи та шеф-кухаря.",
+                "price": 130,
+                "icon": "cat_waiter2_happy",
+                "requires": "terrace",
+                "requires_text": "Потрібна тераса",
+            },
+            {
                 "id": "terrace",
                 "name": "Літня Тераса",
                 "desc": "Відкриває столики тераси, настил та ліхтарики!",
@@ -200,6 +209,9 @@ class ShopModal:
                 item_id = item["id"]
                 btn_r = self._btn_rects.get(item_id)
                 if btn_r and btn_r.collidepoint(mx, my):
+                    req = item.get("requires")
+                    if req and not upgrades.get(req, False):
+                        return True, money, None
                     if not upgrades.get(item_id, False) and money >= item["price"]:
                         new_money = money - item["price"]
                         upgrades[item_id] = True
@@ -317,6 +329,11 @@ class ShopModal:
                 pygame.draw.rect(surface, (225, 245, 225), btn_r, border_radius=8)
                 pygame.draw.rect(surface, C.PATIENCE_GOOD, btn_r, 1, border_radius=8)
                 txt = assets.render_outlined(f_btn, "Куплено ✓", C.PATIENCE_GOOD, (240, 255, 240), 1)
+                surface.blit(txt, txt.get_rect(center=btn_r.center))
+            elif item.get("requires") and not upgrades.get(item["requires"], False):
+                pygame.draw.rect(surface, (225, 222, 215), btn_r, border_radius=8)
+                pygame.draw.rect(surface, (180, 178, 170), btn_r, 1, border_radius=8)
+                txt = assets.render_outlined(f_btn, item.get("requires_text", "Недоступно"), (125, 120, 112), (240, 236, 230), 1)
                 surface.blit(txt, txt.get_rect(center=btn_r.center))
             else:
                 can_afford = (money >= item["price"])

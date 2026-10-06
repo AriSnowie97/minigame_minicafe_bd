@@ -25,7 +25,7 @@ class CustomerState:
 class Customer:
     _id_counter = 0
 
-    def __init__(self, target_table, menu_item: dict, spawn_x: int, spawn_y: int, max_patience: float = float(CUSTOMER_PATIENCE), order_items: list = None):
+    def __init__(self, target_table, menu_item: dict, spawn_x: int, spawn_y: int, max_patience: float = float(CUSTOMER_PATIENCE), order_items: list = None, vip: bool = False):
         Customer._id_counter += 1
         self.uid         = Customer._id_counter
 
@@ -79,6 +79,12 @@ class Customer:
         self._coins_show   = 0.0        # время показа монет после оплаты
 
         self.earned_coins  = sum(int(it.get("price", 50)) for it in self.menu_items)
+
+        # VIP-гость (фиолетовый котик с короной): редкий, заказывает до 4 блюд и щедро платит
+        self.is_vip = bool(vip)
+        if self.is_vip:
+            self.breed = "vip"
+            self.earned_coins *= 2
 
     # ------------------------------------------------------------------
     def update(self, dt: float):
@@ -198,7 +204,7 @@ class Customer:
             pose = "sit"
             bob = int(math.sin(self.anim_t * 1.5) * 1.0)
 
-        sprite_name = f"cat_{self.breed}_{pose}"
+        sprite_name = f"cat_{self.breed}_{'idle' if (self.is_vip and pose == 'sit') else pose}"
 
         def _sprite_exists(name: str) -> bool:
             # В .exe лежат только готовые уменьшенные спрайты из assets/.cache
@@ -237,12 +243,8 @@ class Customer:
         if self.state in (CustomerState.EATING, CustomerState.PAYING):
             from game.core.settings import get_item_sprite
             if len(self.menu_items) > 1:
-                spr1 = get_item_sprite(self.menu_items[0].get("id", 1))
-                spr2 = get_item_sprite(self.menu_items[1].get("id", 1))
-                img1 = assets.image_by_height(spr1, 22)
-                img2 = assets.image_by_height(spr2, 22)
-                surface.blit(img1, img1.get_rect(center=(ix - 10, iy - 6 + bob)))
-                surface.blit(img2, img2.get_rect(center=(ix + 10, iy - 6 + bob)))
+                from game.ui.dish_row import blit_dish_row
+                blit_dish_row(surface, self.menu_items[:4], ix, iy - 6 + bob, 22 if len(self.menu_items) <= 2 else 17, 2)
             else:
                 food_spr_name = get_item_sprite(self.menu_item.get("id", 1))
                 food_img = assets.image_by_height(food_spr_name, 28)
@@ -251,6 +253,9 @@ class Customer:
         # Пузырь заказа (показывается когда котик ждёт заказ)
         if self._bubble_alpha > 0 and self.state == CustomerState.WAITING:
             self._draw_order_bubble(surface, ix, iy + bob)
+        elif self.is_vip and self.state in (CustomerState.SEATED, CustomerState.ORDER_TAKEN,
+                                            CustomerState.EATING, CustomerState.PAYING):
+            self._draw_vip_badge(surface, ix + self._head_dx(), iy + bob - 42 - 40)
 
         # Монеты после оплаты
         if self._coins_show > 0:
@@ -324,6 +329,42 @@ class Customer:
                         math.pi * 0.1, math.pi * 0.9, 5)
 
     # ------------------------------------------------------------------
+    def _head_dx(self) -> int:
+        """Смещение головы сидящего котика от центра столика (у зеркальных столиков — вправо)"""
+        from game.core.settings import CHAIR_RIGHT_TABLES
+        return 36 if getattr(self.table, "table_number", 0) in CHAIR_RIGHT_TABLES else -36
+
+    def _draw_vip_badge(self, surface, x, y):
+        """Значок VIP над головой гостя"""
+        badge = assets.image_by_height("ui_vip_badge", 30)
+        bob = int(math.sin(self.anim_t * 2.2) * 2)
+        surface.blit(badge, badge.get_rect(midbottom=(x, y + bob)))
+
+    def _draw_vip_bubble(self, surface, head_x, head_y, alpha):
+        """Широкая плашка на 4 блюда VIP-гостя (ui_order_bubble_4) с монеткой в углу"""
+        from game.ui.dish_row import dish_images
+        items = self.menu_items[:4]
+        img = assets.image("ui_order_bubble_4")
+        bw = 156
+        bh = int(bw * img.get_height() / max(1, img.get_width()))
+        bubble = pygame.transform.smoothscale(img, (bw, bh)).convert_alpha()
+        # Центры четырёх ячеек (доли от размера обрезанной картинки)
+        centers = [0.164, 0.373, 0.576, 0.783]
+        for it_img, rx in zip(dish_images(items, 24), centers):
+            bubble.blit(it_img, it_img.get_rect(center=(int(bw * rx), int(bh * 0.43))))
+        # Полоска терпения под ячейками
+        bar_w = int(bw * 0.78)
+        ratio = max(0.0, min(1.0, self.patience / max(1.0, self.max_patience)))
+        bar_y = int(bh * 0.70)
+        pygame.draw.rect(bubble, (225, 214, 200), (int(bw * 0.11), bar_y, bar_w, 4), border_radius=2)
+        col = C.PATIENCE_GOOD if ratio > 0.5 else (C.PATIENCE_MID if ratio > 0.25 else C.PATIENCE_LOW)
+        pygame.draw.rect(bubble, col, (int(bw * 0.11), bar_y, max(2, int(bar_w * ratio)), 4), border_radius=2)
+        if alpha < 255:
+            bubble.set_alpha(alpha)
+        bx, by = head_x - int(bw * 0.46), head_y - bh - 4
+        surface.blit(bubble, (bx, by))
+        self._draw_vip_badge(surface, bx + 6, by + 14)
+
     def _draw_order_bubble(self, surface, x, y):
         """Компактный уютный баббл заказа прямо над головой котика с встроенной полоской терпения"""
         alpha = min(255, int(self._bubble_alpha))
@@ -332,9 +373,13 @@ class Customer:
         items = getattr(self, "menu_items", [self.menu_item])
         is_double = len(items) > 1
 
-        # Голова котика в сидячем спрайте находится левее центра столика: x - 36
-        head_x = x - 36
+        # Голова сидящего котика: слева от центра столика (у зеркальных столиков — справа)
+        head_x = x + self._head_dx()
         head_y = y - 42
+
+        if self.is_vip and len(items) >= 3:
+            self._draw_vip_bubble(surface, head_x, head_y, alpha)
+            return
 
         bw, bh = (68, 34) if is_double else (42, 34)
         bx = head_x - bw // 2

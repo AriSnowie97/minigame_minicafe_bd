@@ -57,12 +57,14 @@ EMPLOYEES = [
     (1, "Бариста Мура", "бариста"),
     (2, "Офіціант Мурлик", "офіціант"),
     (3, "Шеф-кухар Мурчик", "кухар"),
+    (4, "Офіціант Пушок", "офіціант"),       # другий офіціант (працює на терасі)
 ]
 
 # Окраси гостей-котиків (збігаються з розділом «Гості-котики» на сайті)
 GUEST_BREEDS = {
     "caramel": "Карамелька", "chocolate": "Шоколадка", "cream": "Кремка",
     "ginger": "Рудик", "graytabby": "Сіренька", "lightgray": "Світлячок",
+    "vip": "VIP-котик",
 }
 
 CHEF_ITEM_IDS = (5, 6, 7, 8, 9, 10, 11)
@@ -97,7 +99,7 @@ def add_demo_orders(session, count: int = 60, days: int = 6, seed: int = 7) -> i
         chef = any(d.id in CHEF_ITEM_IDS for d in dishes)
         status = rng.choices(["оплачено", "скасовано"], weights=[85, 15])[0]
         order = Order(tableid=table_id, employeeid=3 if chef else 1, status=status, gameday=day,
-                      waiterid=2 if (status == "оплачено" and rng.random() < 0.8) else None,
+                      waiterid=rng.choice([2, 4]) if (status == "оплачено" and rng.random() < 0.8) else None,
                       guestbreed=rng.choice(list(GUEST_BREEDS)),
                       orderdatetime=base + timedelta(days=day - 1, hours=rng.randint(9, 20),
                                                      minutes=rng.randint(0, 59)))

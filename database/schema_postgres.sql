@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS employees (
 ALTER TABLE employees DROP COLUMN IF EXISTS phone;
 ALTER TABLE employees DROP COLUMN IF EXISTS hiredate;
 ALTER TABLE employees DROP CONSTRAINT IF EXISTS employees_position_check;
-DELETE FROM employees WHERE id > 3;
+DELETE FROM employees WHERE id > 4;
 ALTER TABLE employees ADD CONSTRAINT employees_position_check CHECK (position IN ('офіціант', 'бариста', 'кухар'));
 
 CREATE TABLE IF NOT EXISTS orders (
@@ -171,5 +171,6 @@ ON CONFLICT DO NOTHING;
 INSERT INTO employees (id, fullname, position) VALUES
     (1, 'Бариста Мура',     'бариста'),
     (2, 'Офіціант Мурлик',  'офіціант'),
-    (3, 'Шеф-кухар Мурчик', 'кухар')
+    (3, 'Шеф-кухар Мурчик', 'кухар'),
+    (4, 'Офіціант Пушок',   'офіціант')
 ON CONFLICT (id) DO UPDATE SET fullname = EXCLUDED.fullname, position = EXCLUDED.position;

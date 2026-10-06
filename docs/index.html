@@ -115,6 +115,9 @@
   .tag { display: inline-block; margin-top: 12px; padding: 4px 12px; border-radius: 999px; font: 700 13px "Nunito", sans-serif;
          background: color-mix(in srgb, var(--sage) 16%, transparent); color: var(--sage); }
   @media (prefers-color-scheme: dark) { .tag { color: #d7dcc9; } }
+  .vip { display: grid; grid-template-columns: 220px 1fr; gap: 28px; align-items: center; }
+  .vip img { width: 100%; filter: drop-shadow(0 6px 10px rgba(70, 40, 25, .25)); }
+  .vip .vipb { width: auto; filter: none; }
   .guests { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin-top: 28px; }
   .guest { text-align: center; background: var(--paper); border: 1px solid var(--line); border-radius: 16px; padding: 14px 8px 12px; }
   .guest img { height: 92px; width: auto; margin: 0 auto 8px; }
@@ -175,6 +178,8 @@
     .hero .wrap, .g2 { grid-template-columns: 1fr; }
     .g3, .g4 { grid-template-columns: 1fr 1fr; }
     .guests { grid-template-columns: repeat(3, 1fr); }
+    .vip { grid-template-columns: 1fr; text-align: center; }
+    .vip > img { max-width: 220px; margin: 0 auto; }
     .gallery { grid-template-columns: 1fr 1fr; }
     .gallery .big { grid-column: span 2; }
     .nav ul { display: none; }
@@ -249,8 +254,8 @@
     <div class="wrap">
       <div class="eyebrow">Персонажі</div>
       <h2>Команда кафе та гості</h2>
-      <p class="intro">Всі працівники — котики. Двох із них потрібно найняти в магазині, і кафе одразу стає схожим на справжнє.</p>
-      <div class="grid g3">
+      <p class="intro">Всі працівники — котики. Трьох із них потрібно найняти в магазині, і кафе одразу стає схожим на справжнє.</p>
+      <div class="grid g4">
         <div class="card char">
           <div class="portrait"><img src="img/barista_idle.png" alt="Бариста"></div>
           <h3>Бариста</h3>
@@ -264,6 +269,12 @@
           <span class="tag">120 монет</span>
         </div>
         <div class="card char">
+          <div class="portrait"><img src="img/cat_waiter2_idle.png" alt="Другий офіціант"></div>
+          <h3>Другий офіціант</h3>
+          <p>Працює лише на терасі: приймає замовлення, несе їх до баристи або на кухню й сам розносить готові страви гостям.</p>
+          <span class="tag">130 монет · після тераси</span>
+        </div>
+        <div class="card char">
           <div class="portrait"><img src="img/cat_cook_idle.png" alt="Шеф-кухар Мурчик"></div>
           <h3>Шеф-кухар Мурчик</h3>
           <p>Відкриває кухню й нові страви. Веде до трьох замовлень одразу, ходить від плити до духовки й столу та гукає офіціанта, коли страва готова.</p>
@@ -271,8 +282,17 @@
         </div>
       </div>
 
+      <div class="card vip" style="margin-top:44px">
+        <img src="img/cat_vip_wait.png" alt="VIP-котик з короною">
+        <div>
+          <div class="eyebrow">Пасхалка</div>
+          <h3 style="font-size:24px">VIP-котик <img class="vipb" src="img/ui_vip_badge.png" alt="" style="display:inline;height:28px;width:auto;vertical-align:-5px"></h3>
+          <p>Фіолетовий котик із золотою короною заходить до кафе дуже рідко, не раніше другого дня. Він замовляє <b>одразу 4 страви</b>, і над ним з'являється особлива плашка зі значком VIP. Обслужіть його вчасно: він платить вдвічі більше й піднімає рейтинг кафе.</p>
+        </div>
+      </div>
+
       <h3 style="margin:44px 0 0;font-size:22px">Гості-котики</h3>
-      <p class="note">Шість окрасів, і в кожного свій настрій: котик сідає, обирає страву, чекає, їсть і платить.</p>
+      <p class="note">Шість окрасів, і в кожного свій настрій: котик сідає, обирає страву, чекає, їсть і платить. А ще інколи заходить особливий гість…</p>
       <div class="guests">
         <div class="guest"><img src="img/cat_caramel_happy.png" alt="Карамелька"><b>Карамелька</b><span>карамельний</span></div>
         <div class="guest"><img src="img/cat_chocolate_happy.png" alt="Шоколадка"><b>Шоколадка</b><span>шоколадний</span></div>
@@ -348,7 +368,7 @@
         <li><div><b>Гість сідає за столик</b><span>Він на хвилинку обирає страву, а потім над ним з'являється бульбашка із замовленням. Терпіння гостя поступово закінчується.</span></div></li>
         <li><div><b>Клікніть по столику</b><span>Без офіціанта ви приймаєте замовлення самі й клікаєте по баристі, щоб він почав готувати. З офіціантом він сам прийме замовлення й передасть його на кухню.</span></div></li>
         <li><div><b>Бариста або кухар готує</b><span>Напої й випічка — бариста, страви кухні — шеф-кухар. Над столиком видно, як просувається готовка.</span></div></li>
-        <li><div><b>Подайте страву</b><span>Готове блюдо чекає на стійці або на кухні. Заберіть його й клікніть по столику (або тільки клікніть по столику, якщо є офіціант).</span></div></li>
+        <li><div><b>Подайте страву</b><span>Готове блюдо чекає на сервірувальному столику біля стійки або на кухні. Заберіть його й клікніть по столику (або тільки клікніть по столику, якщо є офіціант).</span></div></li>
         <li><div><b>Отримайте монети й рейтинг</b><span>Задоволений гість платить і піднімає рейтинг. Витрачайте монети в магазині й розвивайте кафе.</span></div></li>
       </ol>
       <div class="rules"><b>Увага:</b> якщо рейтинг падає нижче 3 зірок або скасовується понад 5 замовлень, кафе зачиняється, і гру треба починати спочатку.</div>

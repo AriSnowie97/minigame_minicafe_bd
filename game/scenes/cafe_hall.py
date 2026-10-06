@@ -26,8 +26,12 @@ from database               import queries
 # Горизонтальні координати кімнат у просторі безшовного панорамування камери
 HALL_TABLES = (1, 2, 3, 4, 9, 10)
 CHEF_ITEM_IDS = (5, 6, 7, 8, 9, 10, 11)   # страви кухаря (тортик теж, якщо кухар найнятий); напої — завжди бариста
-HALL_PICKUP = (712.0, 566.0)           # де офіціант стоїть біля стійки баристи (на підлозі перед нею)
-KITCHEN_PICKUP = (655.0, 595.0)        # видача на кухні
+HALL_SERVE = (722.0, 548.0)            # виставний (сервірувальний) столик у залі: нижня середина спрайта
+KITCHEN_SERVE = (610.0, 604.0)         # сервірувальний столик на кухні
+HALL_PICKUP = (672.0, 566.0)           # де офіціант стоїть біля сервірувального столика в залі
+KITCHEN_PICKUP = (664.0, 608.0)        # де офіціант стоїть біля сервірувального столика на кухні
+TERRACE_HOME = (700.0, 598.0)          # місце другого офіціанта на терасі
+VIP_CHANCE = 0.06                      # шанс появи VIP-гостя при кожному новому госте (пасхалка)
 MENU_BOARD_POS = (868, 344)
 MENU_BOARD_SIZE = (128, 98)
 
@@ -155,9 +159,7 @@ class CafeHallScene:
         self.barista = Barista()
         self._init_barista_pos()
 
-        self.waiter = Waiter(home_x=680.0, home_y=550.0, pickup_x=712.0, pickup_y=566.0)
-        self.waiter.on_order_taken_cb = self._on_waiter_took_order
-        self.waiter.on_order_served_cb = self._on_waiter_served_order
+        self._create_waiters()
 
         # Кімнати закладу: "kitchen", "hall", "terrace" та плавне панорамування камери
         self.camera_x = 0.0
@@ -182,9 +184,9 @@ class CafeHallScene:
         self.arch_terrace_to_hall = pygame.Rect(440, 180, 110, 140)
 
         # Стійка видачі готових страв баристи (у залі)
-        self.counter_pickup_rect = pygame.Rect(700, 500, 95, 75)
+        self.counter_pickup_rect = pygame.Rect(int(HALL_SERVE[0]) - 38, int(HALL_SERVE[1]) - 74, 76, 78)
         # Стіл видачі готових страв на кухні
-        self.kitchen_pickup_rect  = pygame.Rect(565, 540, 90, 70)
+        self.kitchen_pickup_rect  = pygame.Rect(int(KITCHEN_SERVE[0]) - 38, int(KITCHEN_SERVE[1]) - 74, 76, 78)
 
         self._bg_surf = None
         self._bg_terrace_surf = None
@@ -215,7 +217,7 @@ class CafeHallScene:
         self.barista.screen_x = cx
         self.barista.screen_y = cy
         self.barista.hitbox = pygame.Rect(cx - 110, cy - 95, 230, 160)
-        self.counter_pickup_rect = pygame.Rect(cx - 55, cy - 30, 75, 65)
+        self.counter_pickup_rect = pygame.Rect(int(HALL_SERVE[0]) - 38, int(HALL_SERVE[1]) - 74, 76, 78)
 
     # ------------------------------------------------------------------
     def on_enter(self, day: int = 1, money: int = 0, rating: float = 3.0, upgrades: dict = None):
@@ -254,9 +256,7 @@ class CafeHallScene:
         self.barista = Barista()
         self._init_barista_pos()
 
-        self.waiter = Waiter(home_x=680.0, home_y=550.0, pickup_x=712.0, pickup_y=566.0)
-        self.waiter.on_order_taken_cb = self._on_waiter_took_order
-        self.waiter.on_order_served_cb = self._on_waiter_served_order
+        self._create_waiters()
 
         # Завантажуємо дані з БД
         self._menu_items = queries.get_menu_items()
@@ -420,11 +420,10 @@ class CafeHallScene:
     # ------------------------------------------------------------------
     def _on_counter_click(self, mx: int, my: int) -> bool:
         """Гравець клікнув на барну стійку / зону видачі замовлень"""
-        has_waiter = self.day_cfg.get("has_waiter", False)
         ready_tables = [t for t in self._tables if t.state == TableState.READY and not getattr(t, 'is_picked_up', False)]
-        if has_waiter:
-            # Ці страви офіціант уже несе сам
-            ready_tables = [t for t in ready_tables if not self.waiter.is_table_busy(t)]
+        # Ці страви офіціант уже несе сам
+        ready_tables = [t for t in ready_tables
+                        if not (self._waiter_for(t) and self._waiter_for(t).is_table_busy(t))]
 
         # 1. Якщо є готові страви на стійці
         if ready_tables:
@@ -435,23 +434,16 @@ class CafeHallScene:
                 )
                 return True
 
-            if has_waiter and self.waiter.carrying_item is not None:
-                tbl_num = self.waiter.carrying_for_table.table_number if self.waiter.carrying_for_table else "?"
-                self.notifications.append(
-                    Notification(f"На таці вже є страва! Віднесіть її до столика №{tbl_num}!", C.NOTIF_BAD, 2.0)
-                )
-                self.waiter.say(f"Спочатку віднесу до столика №{tbl_num}! :3", duration=1.8)
-                return True
-
             target_tbl = ready_tables[0]
             items = getattr(target_tbl, "order_items", [target_tbl.menu_item] if getattr(target_tbl, "menu_item", None) else [])
             food_names = " + ".join(locale.get(f"food.{MENU_ITEM_KEYS.get(it.get('id', 1), 'cappuccino')}") for it in items)
-            if has_waiter:
+            w = self._waiter_for(target_tbl)
+            if w is not None:
                 # Офіціант забирає готову страву (строго по одному завданню за раз)
-                if self._waiter_is_busy_notice():
+                if self._waiter_is_busy_notice(w):
                     return True
                 self._set_waiter_pickup_for(target_tbl)
-                if self.waiter.enqueue_pickup_dish(target_tbl, target_tbl.menu_item):
+                if w.enqueue_pickup_dish(target_tbl, target_tbl.menu_item):
                     self.notifications.append(
                         Notification(f"Офіціант забирає {food_names} для столика №{target_tbl.table_number}! :3", C.NOTIF_INFO, 1.4)
                     )
@@ -493,9 +485,9 @@ class CafeHallScene:
         return self.barista.handle_click(mx, my)
 
     # ------------------------------------------------------------------
-    def _waiter_is_busy_notice(self) -> bool:
+    def _waiter_is_busy_notice(self, w=None) -> bool:
         """Офіціант виконує завдання строго по черзі: якщо зайнятий — кажемо про це і нічого не додаємо"""
-        w = self.waiter
+        w = w or self.waiter
         if not (w.is_busy() or w.carrying_item is not None):
             return False
         w.say("Я зайнятий іншим замовленням! :3", duration=1.8)
@@ -510,7 +502,8 @@ class CafeHallScene:
             return
 
         cust = tbl.customer
-        has_waiter = self.day_cfg.get("has_waiter", False)
+        w = self._waiter_for(tbl)          # офіціант, який обслуговує цей столик (на терасі — другий)
+        has_waiter = w is not None
 
         # 1. Гравець несе страву на руках -> вручну подаємо гостю!
         if self.player_carrying_table is not None:
@@ -525,19 +518,19 @@ class CafeHallScene:
             return
 
         # 2. Якщо офіціант несе страву на таці -> подаємо гостю!
-        if has_waiter and self.waiter.carrying_item is not None:
-            if self.waiter.carrying_for_table == tbl:
+        if has_waiter and w.carrying_item is not None:
+            if w.carrying_for_table == tbl:
                 tbl.is_queued_waiter = True
-                if self.waiter.enqueue_serve_dish(tbl):
+                if w.enqueue_serve_dish(tbl):
                     self.notifications.append(
                         Notification(f"Офіціант подає замовлення столику №{tbl.table_number}! ^^", C.NOTIF_GOOD, 1.4)
                     )
             else:
-                correct_num = self.waiter.carrying_for_table.table_number if self.waiter.carrying_for_table else "?"
+                correct_num = w.carrying_for_table.table_number if w.carrying_for_table else "?"
                 self.notifications.append(
                     Notification(f"Це замовлення для столика №{correct_num}! Віднесіть туди.", C.NOTIF_BAD, 2.0)
                 )
-                self.waiter.say(f"Це для столика №{correct_num}! :3", duration=1.8)
+                w.say(f"Це для столика №{correct_num}! :3", duration=1.8)
             return
 
         # 3. Клієнт очікує замовлення (WAITING)
@@ -548,9 +541,9 @@ class CafeHallScene:
                         Notification(f"Столик №{tbl.table_number} вже в черзі офіціанта!", C.NOTIF_INFO, 1.2)
                     )
                     return
-                if self._waiter_is_busy_notice():
+                if self._waiter_is_busy_notice(w):
                     return
-                if self.waiter.enqueue_take_order(tbl):
+                if w.enqueue_take_order(tbl):
                     tbl.is_queued_waiter = True
                     self.notifications.append(
                         Notification(f"Офіціант іде приймати замовлення у столика №{tbl.table_number}! :3", C.NOTIF_INFO, 1.4)
@@ -571,14 +564,14 @@ class CafeHallScene:
 
         # Страва готова: якщо є офіціант — гравець посилає його до цього столика
         if tbl.state == TableState.READY and not getattr(tbl, 'is_picked_up', False) and has_waiter:
-            if tbl.is_queued_waiter or self.waiter.is_table_busy(tbl):
+            if tbl.is_queued_waiter or w.is_table_busy(tbl):
                 return
-            if self._waiter_is_busy_notice():
+            if self._waiter_is_busy_notice(w):
                 return
             self._set_waiter_pickup_for(tbl)
             tbl.is_queued_waiter = True
             items = getattr(tbl, "order_items", [tbl.menu_item] if getattr(tbl, "menu_item", None) else [])
-            if self.waiter.enqueue_serve_order(tbl, items[0] if items else None):
+            if w.enqueue_serve_order(tbl, items[0] if items else None):
                 food_names = " + ".join(locale.get(f"food.{MENU_ITEM_KEYS.get(it.get('id', 1), 'cappuccino')}") for it in items)
                 self.notifications.append(
                     Notification(f"Офіціант несе {food_names} до столика №{tbl.table_number}! :3", C.NOTIF_INFO, 1.6)
@@ -683,6 +676,9 @@ class CafeHallScene:
         msg = locale.get("notify.order_done", coins=earned)
         self.notifications.append(Notification(msg, C.NOTIF_GOOD, 2.5))
         self.barista.on_order_served(earned)
+        if getattr(cust, "is_vip", False):
+            self.rating = min(5.0, self.rating + 0.3)
+            self.notifications.append(Notification("VIP-гість у захваті! Щедра винагорода :3", C.NOTIF_GOOD, 3.2))
 
     # ------------------------------------------------------------------
     # Коллбеки роботи офіціанта
@@ -707,11 +703,12 @@ class CafeHallScene:
             Notification(locale.get("action.take_order"), C.NOTIF_INFO, 1.4)
         )
 
-    def _on_waiter_served_order(self, tbl: CafeTable):
-        """Офіціант приніс замовлення до столика"""
+    def _on_waiter_served_order(self, tbl: CafeTable, idx: int = 0):
+        """Офіціант приніс замовлення до столика (idx: 0 — перший офіціант, 1 — другий, терасний)"""
         tbl.is_queued_waiter = False
         if tbl.order_id:
-            waiter_emp = next((e for e in self._employees if e.get("position") == "офіціант"), None)
+            waiters = [e for e in self._employees if e.get("position") == "офіціант"]
+            waiter_emp = waiters[min(idx, len(waiters) - 1)] if waiters else None
             if waiter_emp:
                 queries.assign_waiter(tbl.order_id, waiter_emp["id"])   # у БД видно, хто розніс замовлення
         self._on_player_served_order(tbl)
@@ -724,7 +721,7 @@ class CafeHallScene:
             self.ready_pop_anim = 1.0
             # Феєрверк золотистих зірочок на стійці роздачі та дзвоник баристи
             for _ in range(16):
-                self.star_particles.append(StarParticle(795, 520))
+                self.star_particles.append(StarParticle(HALL_SERVE[0] + 9, HALL_SERVE[1] - 46))
             self.barista.say("Дінь! Замовлення готове! :3", duration=2.4)
         items = getattr(tbl, "order_items", [tbl.menu_item] if getattr(tbl, "menu_item", None) else [])
         food_names = " + ".join(locale.get(f"food.{MENU_ITEM_KEYS.get(it.get('id', 1), 'cappuccino')}") for it in items)
@@ -752,17 +749,25 @@ class CafeHallScene:
             return
 
         tbl = random.choice(free)
-        if len(pool) > 1 and random.random() < self.day_cfg["two_items_chance"]:
+        # Пасхалка: рідкісний фіолетовий VIP-котик з короною (одночасно не більше одного)
+        vip = (len(pool) >= 4 and self.day >= 2 and random.random() < VIP_CHANCE
+               and not any(getattr(c, "is_vip", False) for c in self.customers))
+        if vip:
+            order_items = random.sample(pool, 4)
+        elif len(pool) > 1 and random.random() < self.day_cfg["two_items_chance"]:
             order_items = random.sample(pool, 2)
         else:
             order_items = [random.choice(pool)]
 
         cust = Customer(tbl, order_items[0], None, None,
-                        max_patience=float(self.day_cfg["patience"]),
-                        order_items=order_items)
+                        max_patience=float(self.day_cfg["patience"]) * (1.25 if vip else 1.0),
+                        order_items=order_items, vip=vip)
         tbl.customer = cust
         tbl.waiter_order = False
         self.customers.append(cust)
+
+        if vip:
+            self.notifications.append(Notification("VIP-гість завітав до кафе! Замовляє одразу 4 страви :3", (150, 110, 190), 3.4))
 
         # Гість сів у кімнаті, яку гравець зараз не бачить — повідомляємо
         guest_room = "terrace" if tbl.table_number in (5, 6, 7, 8) else "hall"
@@ -773,14 +778,16 @@ class CafeHallScene:
             )
 
     def _auto_serve_waiter_orders(self):
-        """Замовлення, яке прийняв офіціант: щойно воно готове — він сам забирає страву і несе до столика"""
-        w = self.waiter
-        if w.is_busy() or w.carrying_item is not None or self.player_carrying_table is not None:
+        """Замовлення, яке прийняв офіціант: щойно воно готове — його офіціант сам забирає страву і несе до столика"""
+        if self.player_carrying_table is not None:
             return
         for tbl in self._tables:
             if tbl.state != TableState.READY or getattr(tbl, "is_picked_up", False):
                 continue
             if not getattr(tbl, "waiter_order", False):
+                continue
+            w = self._waiter_for(tbl)
+            if w is None or w.is_busy() or w.carrying_item is not None:
                 continue
             cust = tbl.customer
             if cust is None or cust.state in (CustomerState.LEAVING, CustomerState.GONE):
@@ -795,7 +802,6 @@ class CafeHallScene:
                 )
             else:
                 tbl.is_queued_waiter = False
-            return
 
     def _start_queued_orders(self):
         """Коли бариста/кухар звільнилися — беруть наступне замовлення з черги"""
@@ -841,25 +847,63 @@ class CafeHallScene:
         items = getattr(tbl, "order_items", [tbl.menu_item] if getattr(tbl, "menu_item", None) else [])
         return self._is_chef_dish(items)
 
+    def _create_waiters(self):
+        """Два офіціанти: перший — зал (і тераса, поки немає другого), другий — лише тераса"""
+        self.waiter = Waiter(home_x=680.0, home_y=550.0, pickup_x=HALL_PICKUP[0], pickup_y=HALL_PICKUP[1])
+        self.waiter.on_order_taken_cb = self._on_waiter_took_order
+        self.waiter.on_order_served_cb = lambda t: self._on_waiter_served_order(t, 0)
+        self.waiter.handin_cb = self._handin_point
+
+        self.waiter2 = Waiter(home_x=TERRACE_HOME[0], home_y=TERRACE_HOME[1],
+                              pickup_x=HALL_PICKUP[0], pickup_y=HALL_PICKUP[1])
+        self.waiter2.sprite_prefix = "cat_waiter2"
+        self.waiter2.room = self.waiter2.home_room = self.waiter2.target_room = "terrace"
+        self.waiter2.on_order_taken_cb = self._on_waiter_took_order
+        self.waiter2.on_order_served_cb = lambda t: self._on_waiter_served_order(t, 1)
+        self.waiter2.handin_cb = self._handin_point
+
+    def _active_waiters(self) -> list:
+        """Найняті офіціанти"""
+        out = []
+        if self.day_cfg.get("has_waiter", False):
+            out.append(self.waiter)
+        if self.day_cfg.get("has_waiter2", False):
+            out.append(self.waiter2)
+        return out
+
+    def _waiter_for(self, tbl):
+        """Хто обслуговує цей столик: на терасі — другий офіціант (якщо куплений), інакше перший"""
+        if tbl.table_number in (5, 6, 7, 8) and self.day_cfg.get("has_waiter2", False):
+            return self.waiter2
+        if self.day_cfg.get("has_waiter", False):
+            return self.waiter
+        return None
+
+    def _handin_point(self, tbl) -> tuple:
+        """Куди офіціант несе бланк замовлення: до кухаря (страви кухні) або до баристи"""
+        if self._order_is_chef(tbl):
+            return KITCHEN_PICKUP[0], KITCHEN_PICKUP[1], "kitchen"
+        return HALL_PICKUP[0], HALL_PICKUP[1], "hall"
+
     def _set_waiter_pickup_for(self, tbl):
-        """Куди офіціант іде за готовою стравою: на кухню (страви кухаря) або до стійки баристи"""
-        w = self.waiter
+        """Куди офіціант іде за готовою стравою: на кухню (страви кухаря) або до сервірувального столика в залі"""
+        w = self._waiter_for(tbl)
+        if w is None:
+            return
         if self._is_chef_table(tbl):
             w.pickup_x, w.pickup_y, w.pickup_room = KITCHEN_PICKUP[0], KITCHEN_PICKUP[1], "kitchen"
         else:
             w.pickup_x, w.pickup_y, w.pickup_room = HALL_PICKUP[0], HALL_PICKUP[1], "hall"
 
     def _reset_waiter_pickup(self):
-        """Поки офіціант вільний, точка видачі — стійка в залі (сюди ж він несе бланки замовлень)"""
-        w = self.waiter
-        if not w.is_busy() and w.carrying_item is None:
-            w.pickup_x, w.pickup_y, w.pickup_room = HALL_PICKUP[0], HALL_PICKUP[1], "hall"
+        """Поки офіціант вільний, точка видачі — сервірувальний столик у залі"""
+        for w in self._active_waiters():
+            if not w.is_busy() and w.carrying_item is None:
+                w.pickup_x, w.pickup_y, w.pickup_room = HALL_PICKUP[0], HALL_PICKUP[1], "hall"
 
-    def _should_draw_waiter_in(self, room: str) -> bool:
-        """Офіціант малюється в тій кімнаті, де він зараз реально знаходиться"""
-        if not self.day_cfg.get("has_waiter", False):
-            return False
-        return room == self.waiter.room
+    def _waiters_in(self, room: str) -> list:
+        """Офіціанти, які зараз реально знаходяться в цій кімнаті"""
+        return [w for w in self._active_waiters() if w.room == room]
 
     # ------------------------------------------------------------------
     def update(self, dt: float):
@@ -900,7 +944,7 @@ class CafeHallScene:
                                    for it in getattr(t, "order_items", []))
                 chef_ready.append((t.table_number, names))
         self.cook.update(dt, is_cooking=bool(chef_cooking), dishes=chef_dish_ids, ready=chef_ready,
-                         has_waiter=self.day_cfg.get("has_waiter", False))
+                         has_waiter=bool(self._active_waiters()))
 
         # Спавн клієнтів
         self._spawn_timer -= dt
@@ -908,15 +952,13 @@ class CafeHallScene:
             self._try_spawn_customer()
             self._spawn_timer = self._spawn_interval * random.uniform(0.75, 1.25)
 
-        # Оновлюємо офіціанта тільки якщо він найнятий у магазині
-        if self.day_cfg.get("has_waiter", False):
-            if not self.waiter.is_busy():
-                self.waiter.home_x = 680.0
-                self.waiter.home_y = 550.0
-                self.waiter.home_room = "hall"
+        # Оновлюємо офіціантів (лише тих, хто найнятий у магазині)
+        active_waiters = self._active_waiters()
+        if active_waiters:
             self._reset_waiter_pickup()
             self._auto_serve_waiter_orders()
-            self.waiter.update(dt)
+            for w in active_waiters:
+                w.update(dt)
             self._start_queued_orders()
 
         # Оновлюємо баристу
@@ -1012,8 +1054,8 @@ class CafeHallScene:
             # 2.2 Вміст відповідної кімнати
             if room_name == "kitchen":
                 self._draw_kitchen_room(surface, offset_x=dx)
-                if self._should_draw_waiter_in("kitchen"):
-                    self.waiter.draw(surface, offset_x=dx)
+                for w in self._waiters_in("kitchen"):
+                    w.draw(surface, offset_x=dx)
 
             elif room_name == "hall":
                 # Стіни та декор
@@ -1036,8 +1078,8 @@ class CafeHallScene:
                     if cust_tbl_num in HALL_TABLES:
                         draw_list.append((cust.y + 1, lambda s, c=cust: c.draw(s, offset_x=dx)))
 
-                if self._should_draw_waiter_in("hall"):
-                    draw_list.append((self.waiter.y, lambda s: self.waiter.draw(s, offset_x=dx)))
+                for w in self._waiters_in("hall"):
+                    draw_list.append((w.y, lambda s, w=w: w.draw(s, offset_x=dx)))
 
                 draw_list.sort(key=lambda item: item[0])
                 for _, draw_fn in draw_list:
@@ -1059,8 +1101,8 @@ class CafeHallScene:
                     if cust_tbl_num in (5, 6, 7, 8):
                         draw_list.append((cust.y + 1, lambda s, c=cust: c.draw(s, offset_x=dx)))
 
-                if self._should_draw_waiter_in("terrace"):
-                    draw_list.append((self.waiter.y, lambda s: self.waiter.draw(s, offset_x=dx)))
+                for w in self._waiters_in("terrace"):
+                    draw_list.append((w.y, lambda s, w=w: w.draw(s, offset_x=dx)))
 
                 draw_list.sort(key=lambda item: item[0])
                 for _, draw_fn in draw_list:
@@ -1083,10 +1125,10 @@ class CafeHallScene:
 
         # 4. Підказка щодо поточної страви на таці офіціанта або в руках гравця
         if not self.shop_modal.is_open:
-            has_waiter = self.day_cfg.get("has_waiter", False)
             is_carrying = False
-            if has_waiter and self.waiter.carrying_item and self.waiter.carrying_for_table:
-                self._draw_carrying_guide(surface, self.waiter.carrying_for_table, self.waiter.carrying_item)
+            carrier = next((w for w in self._active_waiters() if w.carrying_item and w.carrying_for_table), None)
+            if carrier is not None:
+                self._draw_carrying_guide(surface, carrier.carrying_for_table, carrier.carrying_item)
                 is_carrying = True
             elif self.player_carrying_table and self.player_carrying_table.menu_item:
                 self._draw_carrying_guide(surface, self.player_carrying_table, self.player_carrying_table.menu_item)
@@ -1266,39 +1308,24 @@ class CafeHallScene:
         self.cook.height = 107
         self.cook.draw(surface, offset_x=offset_x)
 
-        # 10. Стіл видачі готових страв на кухні (біля арочного проходу до залу кафе)
-        tw, th = 85, 42
-        pygame.draw.ellipse(surface, (145, 95, 60), (pickup_pos[0] - tw // 2, pickup_pos[1] - th // 2, tw, th))
-        pygame.draw.ellipse(surface, (190, 140, 95), (pickup_pos[0] - tw // 2 + 2, pickup_pos[1] - th // 2 + 2, tw - 4, th - 4))
+        # 10. Сервірувальний столик видачі на кухні (біля арочного проходу до залу)
+        ready_tables = [t for t in self._tables if t.state == TableState.READY and not getattr(t, 'is_picked_up', False) and self._is_chef_table(t)]
+        serve_rect = self._draw_serving_counter(surface, KITCHEN_SERVE[0] + offset_x, KITCHEN_SERVE[1], bool(ready_tables))
+        pickup_pos = (serve_rect.left + int(serve_rect.w * 0.62), serve_rect.top + int(serve_rect.h * 0.30))
 
-        # Вивіска над столиком видачі
+        # Вивіска під столиком видачі
         f_pic = assets.font_ui(11, bold=True)
         t_pic = assets.render_outlined(f_pic, "Роздача кухні", C.WHITE, (40, 35, 30), 1)
-        surface.blit(t_pic, t_pic.get_rect(center=(pickup_pos[0], pickup_pos[1] + 28)))
+        surface.blit(t_pic, t_pic.get_rect(center=(serve_rect.centerx, serve_rect.bottom + 10)))
 
-        # Якщо є готова страва — підсвічуємо столик роздачі та малюємо страву
-        ready_tables = [t for t in self._tables if t.state == TableState.READY and not getattr(t, 'is_picked_up', False) and self._is_chef_table(t)]
+        # Якщо є готова страва — показуємо її над клошем
         if ready_tables:
+            from game.ui.dish_row import blit_dish_row
             top_tbl = ready_tables[0]
-            pulse = (math.sin(self._t * 5.0) + 1.0) * 0.5
-            glow_r = int(26 + pulse * 6)
-            glow_surf = pygame.Surface((glow_r * 2, glow_r * 2), pygame.SRCALPHA)
-            pygame.draw.circle(glow_surf, (255, 220, 110, int(70 + pulse * 50)), (glow_r, glow_r), glow_r)
-            surface.blit(glow_surf, (pickup_pos[0] - glow_r, pickup_pos[1] - glow_r))
-
             bob = int(math.sin(self._t * 6.0) * 2)
             items = getattr(top_tbl, "order_items", [top_tbl.menu_item] if getattr(top_tbl, "menu_item", None) else [])
-            if len(items) > 1:
-                spr1 = get_item_sprite(items[0].get("id", 1))
-                spr2 = get_item_sprite(items[1].get("id", 1))
-                img1 = assets.image_by_height(spr1, 22)
-                img2 = assets.image_by_height(spr2, 22)
-                surface.blit(img1, img1.get_rect(center=(pickup_pos[0] - 10, pickup_pos[1] - 8 + bob)))
-                surface.blit(img2, img2.get_rect(center=(pickup_pos[0] + 10, pickup_pos[1] - 8 + bob)))
-            else:
-                item_id = items[0].get("id", 1) if items else 1
-                dish_img = assets.image_by_height(get_item_sprite(item_id), 28)
-                surface.blit(dish_img, dish_img.get_rect(center=(pickup_pos[0], pickup_pos[1] - 8 + bob)))
+            n = len(items)
+            blit_dish_row(surface, items[:4], pickup_pos[0], pickup_pos[1] - 18 + bob, 26 if n == 1 else (20 if n <= 2 else 16), 2)
 
             badge_text = f"№{top_tbl.table_number} Забрати!"
             f = assets.font_ui(12)
@@ -1312,7 +1339,7 @@ class CafeHallScene:
             pygame.draw.polygon(badge, (255, 250, 230), tail_pts)
             pygame.draw.polygon(badge, (230, 150, 40), tail_pts, 1)
             badge.blit(txt, (8, 3))
-            surface.blit(badge, (pickup_pos[0] - bw // 2, pickup_pos[1] - 44))
+            surface.blit(badge, (pickup_pos[0] - bw // 2, pickup_pos[1] - 18 - 30 - bh))
 
         # 11. Віджет прогресу приготування страви (якщо зараз щось готується)
         if cooking_tables:
@@ -1452,21 +1479,22 @@ class CafeHallScene:
             surface.blit(card, (wx - cw // 2, wy - ch // 2))
 
     # ------------------------------------------------------------------
+    def _draw_serving_counter(self, surface: pygame.Surface, mid_x: int, bottom_y: int, ready: bool, height: int = 80):
+        """Сервірувальний столик видачі (із клошем і лампою, коли страва готова)"""
+        name = "furniture_serving_counter_ready" if ready else "furniture_serving_counter"
+        img = assets.image_by_height(name, height)
+        rect = img.get_rect(midbottom=(int(mid_x), int(bottom_y)))
+        surface.blit(img, rect)
+        return rect
+
     def _draw_counter_pickup_station(self, surface: pygame.Surface, offset_x: int = 0):
-        """Отрисовка готових страв на стійці видачі баристи з ефектом 'Дінь!'"""
+        """Сервірувальний столик у залі: готові страви баристи з ефектом 'Дінь!'"""
         ready_tables = [t for t in self._tables if t.state == TableState.READY and not getattr(t, 'is_picked_up', False) and not self._is_chef_table(t)]
+        rect = self._draw_serving_counter(surface, HALL_SERVE[0] + offset_x, HALL_SERVE[1], bool(ready_tables))
         if not ready_tables:
             return
 
-        cx, cy = 806 + offset_x, 505
-
-        # М'яке золотисте сяйво стійки роздачі
-        pulse = (math.sin(self._t * 5.0) + 1.0) * 0.5
-        glow_r = int(24 + pulse * 6)
-        glow_surf = pygame.Surface((glow_r * 2, glow_r * 2), pygame.SRCALPHA)
-        glow_alpha = int(60 + pulse * 50)
-        pygame.draw.circle(glow_surf, (255, 220, 110, glow_alpha), (glow_r, glow_r), glow_r)
-        surface.blit(glow_surf, (cx - glow_r, cy - glow_r))
+        cx, cy = rect.left + int(rect.w * 0.62), rect.top + int(rect.h * 0.30)
 
         # Анімація пружного вибуху "Дінь!" при щойно приготованій страві
         if self.ready_pop_anim > 0:
@@ -1476,49 +1504,27 @@ class CafeHallScene:
             pygame.draw.circle(ring_surf, (255, 230, 80, ring_alpha), (ring_r, ring_r), ring_r, 3)
             surface.blit(ring_surf, (cx - ring_r, cy - ring_r))
 
-        # Дерев'яна таця роздачі
-        pw, ph = 52, 26
-        tray_rect = pygame.Rect(cx - pw // 2, cy - ph // 2, pw, ph)
-        pygame.draw.ellipse(surface, (145, 95, 60), tray_rect)
-        pygame.draw.ellipse(surface, (190, 140, 95), (cx - pw // 2 + 2, cy - ph // 2 + 2, pw - 4, ph - 4))
-
-        # Готова страва (або дві страви)
+        # Готова страва (або кілька) над клошем
+        from game.ui.dish_row import blit_dish_row
         top_tbl = ready_tables[0]
         items = getattr(top_tbl, "order_items", [top_tbl.menu_item] if getattr(top_tbl, "menu_item", None) else [])
         bob = int(math.sin(self._t * 6.0) * 2)
+        n = len(items)
+        blit_dish_row(surface, items[:4], cx, cy - 18 + bob, 26 if n == 1 else (20 if n <= 2 else 16), 2)
 
-        if len(items) > 1:
-            spr1 = get_item_sprite(items[0].get("id", 1))
-            spr2 = get_item_sprite(items[1].get("id", 1))
-            img1 = assets.image_by_height(spr1, 22)
-            img2 = assets.image_by_height(spr2, 22)
-            surface.blit(img1, img1.get_rect(center=(cx - 10, cy - 8 + bob)))
-            surface.blit(img2, img2.get_rect(center=(cx + 10, cy - 8 + bob)))
-        else:
-            item_id = items[0].get("id", 1) if items else 1
-            dish_spr_name = get_item_sprite(item_id)
-            dish_img = assets.image_by_height(dish_spr_name, 28)
-            surface.blit(dish_img, dish_img.get_rect(center=(cx, cy - 8 + bob)))
-
-        # Бейджик з номером столика та кнопкою "Забрати!"
         badge_text = f"№{top_tbl.table_number} Забрати!"
-
         f = assets.font_ui(12)
         txt = f.render(badge_text, True, C.TEXT_DARK)
         bw = txt.get_width() + 16
         bh = 22
-        bx = cx - bw // 2
-        by = cy - 42
-
         badge = pygame.Surface((bw, bh + 5), pygame.SRCALPHA)
         pygame.draw.rect(badge, (255, 250, 230), (0, 0, bw, bh), border_radius=7)
         pygame.draw.rect(badge, (230, 150, 40), (0, 0, bw, bh), 2, border_radius=7)
         tail_pts = [(bw // 2 - 4, bh), (bw // 2 + 4, bh), (bw // 2, bh + 4)]
         pygame.draw.polygon(badge, (255, 250, 230), tail_pts)
         pygame.draw.polygon(badge, (230, 150, 40), tail_pts, 1)
-
         badge.blit(txt, (8, 3))
-        surface.blit(badge, (bx, by))
+        surface.blit(badge, (cx - bw // 2, cy - 18 - 30 - bh))
 
     def _draw_carrying_guide(self, surface: pygame.Surface, tbl: CafeTable = None, item: dict = None):
         """Інформаційний бейдж-підказка вгорі екрана, коли несеться страва"""
