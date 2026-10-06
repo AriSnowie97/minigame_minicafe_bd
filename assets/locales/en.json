@@ -1,0 +1,83 @@
+{
+  "lang_name": "English",
+  "lang_code": "en",
+  "menu": {
+    "play": "Play",
+    "settings": "Settings",
+    "quit": "Quit",
+    "subtitle": "Cozy Cat Cafe"
+  },
+  "hud": {
+    "money": "Coins",
+    "day": "Day",
+    "time": "Time",
+    "score": "Score",
+    "rating": "Rating",
+    "orders": "Orders"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "sound": "Sound",
+    "music": "Music",
+    "back": "Back",
+    "on": "ON",
+    "off": "OFF",
+    "volume": "Volume"
+  },
+  "game_over": {
+    "title": "Day Complete!",
+    "earned": "Earned",
+    "orders_done": "Orders served",
+    "orders_cancelled": "Cancelled",
+    "rating": "Rating",
+    "next_day": "Next Day →",
+    "failed_title": "Cafe Closed!",
+    "fail_rating": "Rating fell below 3 stars",
+    "fail_orders": "More than 5 orders cancelled",
+    "restart": "Start Over",
+    "main_menu": "Main Menu"
+  },
+  "food": {
+    "coffee": "Coffee",
+    "takeaway_coffee": "Takeaway Coffee",
+    "croissant": "Croissant",
+    "cappuccino": "Cappuccino",
+    "latte": "Latte",
+    "tea": "Black Tea",
+    "cookies": "Cookies",
+    "iced_latte": "Iced Latte",
+    "cake": "Cake",
+    "syrnyky": "Cheesecakes",
+    "omelette": "Bacon Omelet",
+    "caesar": "Caesar Salad",
+    "borscht": "Borscht",
+    "tiramisu": "Tiramisu",
+    "bruschetta": "Bruschetta"
+  },
+  "customer": {
+    "seated": "Meow~",
+    "waiting": "Waiting...",
+    "happy": "Purrfect!",
+    "impatient": "Hurry up!",
+    "angry": "I'm leaving!",
+    "leaving": "Thank you!"
+  },
+  "action": {
+    "take_order": "Take Order",
+    "deliver": "Serve!",
+    "cooking": "Cooking..."
+  },
+  "notify": {
+    "customer_left": "Cat left unhappy!",
+    "order_done": "Order complete! +{coins} coins",
+    "day_start": "Day {day} begins!",
+    "connected": "Connected to cafe DB",
+    "offline": "Offline mode"
+  },
+  "table": {
+    "empty": "Free",
+    "occupied": "Occupied",
+    "order_ready": "Deliver now!"
+  }
+}

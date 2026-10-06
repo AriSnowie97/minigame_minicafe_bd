@@ -1,0 +1,83 @@
+{
+  "lang_name": "Русский",
+  "lang_code": "ru",
+  "menu": {
+    "play": "Играть",
+    "settings": "Настройки",
+    "quit": "Выйти",
+    "subtitle": "Уютное котокафе"
+  },
+  "hud": {
+    "money": "Монеты",
+    "day": "День",
+    "time": "Время",
+    "score": "Счёт",
+    "rating": "Рейтинг",
+    "orders": "Заказы"
+  },
+  "settings": {
+    "title": "Настройки",
+    "language": "Язык",
+    "sound": "Звук",
+    "music": "Музыка",
+    "back": "Назад",
+    "on": "ВКЛ",
+    "off": "ВЫКЛ",
+    "volume": "Громкость"
+  },
+  "game_over": {
+    "title": "День завершён!",
+    "earned": "Заработано",
+    "orders_done": "Выполнено заказов",
+    "orders_cancelled": "Отменено",
+    "rating": "Рейтинг",
+    "next_day": "Следующий день →",
+    "failed_title": "Кафе закрыто!",
+    "fail_rating": "Рейтинг упал ниже 3 звёзд",
+    "fail_orders": "Отменено более 5 заказов",
+    "restart": "Начать сначала",
+    "main_menu": "Главное меню"
+  },
+  "food": {
+    "coffee": "Кофе",
+    "takeaway_coffee": "Кофе с собой",
+    "croissant": "Круассан",
+    "cappuccino": "Капучино",
+    "latte": "Латте",
+    "tea": "Чёрный чай",
+    "cookies": "Печенье",
+    "iced_latte": "Айс латте",
+    "cake": "Тортик",
+    "syrnyky": "Сырники",
+    "omelette": "Омлет с беконом",
+    "caesar": "Салат Цезарь",
+    "borscht": "Борщ",
+    "tiramisu": "Тирамису",
+    "bruschetta": "Брускетта"
+  },
+  "customer": {
+    "seated": "Мур-р~",
+    "waiting": "Жду...",
+    "happy": "Вкусно!",
+    "impatient": "Побыстрее!",
+    "angry": "Я ухожу!",
+    "leaving": "Спасибо!"
+  },
+  "action": {
+    "take_order": "Принять заказ",
+    "deliver": "Подать!",
+    "cooking": "Готовится..."
+  },
+  "notify": {
+    "customer_left": "Кот ушёл недовольным!",
+    "order_done": "Заказ выполнен! +{coins} монет",
+    "day_start": "День {day} начался!",
+    "connected": "Подключено к БД кафе",
+    "offline": "Режим офлайн"
+  },
+  "table": {
+    "empty": "Свободно",
+    "occupied": "Занято",
+    "order_ready": "Подать сейчас!"
+  }
+}

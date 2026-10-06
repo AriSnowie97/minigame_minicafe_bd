@@ -1,0 +1,83 @@
+{
+  "lang_name": "Українська",
+  "lang_code": "uk",
+  "menu": {
+    "play": "Грати",
+    "settings": "Налаштування",
+    "quit": "Вийти",
+    "subtitle": "Затишне котяче кафе"
+  },
+  "hud": {
+    "money": "Монети",
+    "day": "День",
+    "time": "Час",
+    "score": "Рахунок",
+    "rating": "Рейтинг",
+    "orders": "Замовлення"
+  },
+  "settings": {
+    "title": "Налаштування",
+    "language": "Мова",
+    "sound": "Звук",
+    "music": "Музика",
+    "back": "Назад",
+    "on": "ВКЛ",
+    "off": "ВИКЛ",
+    "volume": "Гучність"
+  },
+  "game_over": {
+    "title": "День завершено!",
+    "earned": "Зароблено",
+    "orders_done": "Виконано замовлень",
+    "orders_cancelled": "Скасовано",
+    "rating": "Рейтинг",
+    "next_day": "Наступний день →",
+    "failed_title": "Кафе закрито!",
+    "fail_rating": "Рейтинг впав нижче 3 зірок",
+    "fail_orders": "Скасовано понад 5 замовлень",
+    "restart": "Почати спочатку",
+    "main_menu": "Головне меню"
+  },
+  "food": {
+    "coffee": "Кава",
+    "takeaway_coffee": "Кава з собою",
+    "croissant": "Круасан",
+    "cappuccino": "Капучино",
+    "latte": "Лате",
+    "tea": "Чай чорний",
+    "cookies": "Печиво",
+    "iced_latte": "Айс лате",
+    "cake": "Тортик",
+    "syrnyky": "Сирники",
+    "omelette": "Омлет з беконом",
+    "caesar": "Салат Цезар",
+    "borscht": "Борщ",
+    "tiramisu": "Тірамісу",
+    "bruschetta": "Брускета"
+  },
+  "customer": {
+    "seated": "Муррр~",
+    "waiting": "Чекаю...",
+    "happy": "Смачно!",
+    "impatient": "Швидше!",
+    "angry": "Я йду!",
+    "leaving": "Дякую!"
+  },
+  "action": {
+    "take_order": "Прийняти замовлення",
+    "deliver": "Подати!",
+    "cooking": "Готується..."
+  },
+  "notify": {
+    "customer_left": "Кіт пішов незадоволений!",
+    "order_done": "Замовлення виконано! +{coins} монет",
+    "day_start": "День {day} розпочато!",
+    "connected": "Підключено до БД кафе",
+    "offline": "Офлайн режим"
+  },
+  "table": {
+    "empty": "Вільно",
+    "occupied": "Зайнято",
+    "order_ready": "Подати зараз!"
+  }
+}

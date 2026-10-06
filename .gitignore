@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+.env
+assets/.cache/
+screenshot_*.png
