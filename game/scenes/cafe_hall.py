@@ -640,7 +640,8 @@ class CafeHallScene:
         position = "кухар" if self._is_chef_dish(items) else "бариста"
         emp = next((e for e in self._employees if e.get("position") == position),
                    self._employees[0] if self._employees else {"id": 1})
-        order_id = queries.create_order(tbl.db_id, emp["id"], gameday=self.day)
+        order_id = queries.create_order(tbl.db_id, emp["id"], gameday=self.day,
+                                        guestbreed=getattr(cust, "breed", None))
         cust.order_id = order_id
         if order_id:
             for it in items:
@@ -709,6 +710,10 @@ class CafeHallScene:
     def _on_waiter_served_order(self, tbl: CafeTable):
         """Офіціант приніс замовлення до столика"""
         tbl.is_queued_waiter = False
+        if tbl.order_id:
+            waiter_emp = next((e for e in self._employees if e.get("position") == "офіціант"), None)
+            if waiter_emp:
+                queries.assign_waiter(tbl.order_id, waiter_emp["id"])   # у БД видно, хто розніс замовлення
         self._on_player_served_order(tbl)
 
     def _on_dish_ready(self, tbl: CafeTable):

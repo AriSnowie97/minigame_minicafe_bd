@@ -2,7 +2,6 @@
 Початкові дані MiniCafe для ORM. Це ті самі дані, що й у database/schema_postgres.sql;
 їх використовує локальна SQLite-база, якщо PostgreSQL (Railway) недоступний.
 """
-from datetime import date
 import random
 from datetime import datetime, timedelta
 
@@ -53,12 +52,18 @@ TABLES = [
     (6, 6, 4, "тераса"), (7, 7, 2, "тераса"), (8, 8, 4, "тераса"), (9, 9, 2, "зал"), (10, 10, 2, "зал"),
 ]
 
+# Персонал кафе — котики-персонажі гри
 EMPLOYEES = [
-    (1, "Коваленко Ірина", "бариста", "+380671000001", date(2024, 3, 1)),
-    (2, "Петренко Олег", "офіціант", "+380671000002", date(2024, 5, 15)),
-    (3, "Сидоренко Марія", "кухар", "+380671000003", date(2023, 11, 20)),
-    (4, "Бондаренко Андрій", "адміністратор", "+380671000004", date(2022, 9, 10)),
+    (1, "Бариста Мура", "бариста"),
+    (2, "Офіціант Мурлик", "офіціант"),
+    (3, "Шеф-кухар Мурчик", "кухар"),
 ]
+
+# Окраси гостей-котиків (збігаються з розділом «Гості-котики» на сайті)
+GUEST_BREEDS = {
+    "caramel": "Карамелька", "chocolate": "Шоколадка", "cream": "Кремка",
+    "ginger": "Рудик", "graytabby": "Сіренька", "lightgray": "Світлячок",
+}
 
 CHEF_ITEM_IDS = (5, 6, 7, 8, 9, 10, 11)
 
@@ -72,7 +77,7 @@ def seed_reference_data(session):
     session.flush()
     session.add_all([MenuItemIngredient(id=i, menuitemid=m, productid=p, quantity=q) for i, m, p, q in INGREDIENTS])
     session.add_all([CafeTable(id=i, tablenumber=n, capacity=c, location=l) for i, n, c, l in TABLES])
-    session.add_all([Employee(id=i, fullname=f, position=p, phone=ph, hiredate=h) for i, f, p, ph, h in EMPLOYEES])
+    session.add_all([Employee(id=i, fullname=f, position=p) for i, f, p in EMPLOYEES])
     session.flush()
 
 
@@ -92,6 +97,8 @@ def add_demo_orders(session, count: int = 60, days: int = 6, seed: int = 7) -> i
         chef = any(d.id in CHEF_ITEM_IDS for d in dishes)
         status = rng.choices(["оплачено", "скасовано"], weights=[85, 15])[0]
         order = Order(tableid=table_id, employeeid=3 if chef else 1, status=status, gameday=day,
+                      waiterid=2 if (status == "оплачено" and rng.random() < 0.8) else None,
+                      guestbreed=rng.choice(list(GUEST_BREEDS)),
                       orderdatetime=base + timedelta(days=day - 1, hours=rng.randint(9, 20),
                                                      minutes=rng.randint(0, 59)))
         session.add(order)

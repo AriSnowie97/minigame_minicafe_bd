@@ -4,10 +4,10 @@ ORM-моделі MiniCafe (SQLAlchemy 2.0).
 Кожен клас відповідає таблиці з database/schema_postgres.sql, а зв'язки між
 таблицями описані через relationship() — з них будуються складні запити у stats.py.
 """
-from datetime import date, datetime
+from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import (CheckConstraint, Date, DateTime, ForeignKey, Integer, Numeric,
+from sqlalchemy import (CheckConstraint, DateTime, ForeignKey, Integer, Numeric,
                         String, Text, UniqueConstraint, func)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -86,11 +86,11 @@ class Employee(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
     fullname: Mapped[str] = mapped_column(String(100), nullable=False)
-    position: Mapped[str] = mapped_column(String(20), nullable=False)
-    phone: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
-    hiredate: Mapped[date] = mapped_column(Date, nullable=False)
+    position: Mapped[str] = mapped_column(String(20), nullable=False)   # бариста / кухар / офіціант
 
-    orders: Mapped[List["Order"]] = relationship(back_populates="employee")
+    # замовлення, які співробітник приготував, і ті, які він розніс гостям
+    orders: Mapped[List["Order"]] = relationship(back_populates="employee", foreign_keys="Order.employeeid")
+    served_orders: Mapped[List["Order"]] = relationship(back_populates="waiter", foreign_keys="Order.waiterid")
 
 
 class Order(Base):
@@ -103,9 +103,12 @@ class Order(Base):
     orderdatetime: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="відкрито")
     gameday: Mapped[Optional[int]] = mapped_column(Integer)   # ігровий день, у який зроблено замовлення
+    waiterid: Mapped[Optional[int]] = mapped_column(ForeignKey("employees.id"))   # хто розніс замовлення
+    guestbreed: Mapped[Optional[str]] = mapped_column(String(20))                 # окрас гостя-котика
 
     table: Mapped["CafeTable"] = relationship(back_populates="orders")
-    employee: Mapped["Employee"] = relationship(back_populates="orders")
+    employee: Mapped["Employee"] = relationship(back_populates="orders", foreign_keys=[employeeid])
+    waiter: Mapped[Optional["Employee"]] = relationship(back_populates="served_orders", foreign_keys=[waiterid])
     items: Mapped[List["OrderItem"]] = relationship(back_populates="order", cascade="all, delete-orphan")
 
 

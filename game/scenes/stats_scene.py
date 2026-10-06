@@ -53,6 +53,12 @@ TEXT = {
     "tab_cats": {"uk": "Категорії", "ru": "Категории", "en": "Categories"},
     "tab_prod": {"uk": "Продукти", "ru": "Продукты", "en": "Products"},
     "tab_profit": {"uk": "Прибуток", "ru": "Прибыль", "en": "Profit"},
+    "tab_guests": {"uk": "Гості", "ru": "Гости", "en": "Guests"},
+    "guest": {"uk": "Гість-котик", "ru": "Гость-котик", "en": "Cat guest"},
+    "left": {"uk": "Пішли без страви", "ru": "Ушли без блюда", "en": "Left unserved"},
+    "prepared": {"uk": "Приготував", "ru": "Приготовил", "en": "Prepared"},
+    "served": {"uk": "Розніс", "ru": "Разнёс", "en": "Served"},
+    "place_rank": {"uk": "Місце", "ru": "Место", "en": "Rank"},
 }
 
 
@@ -85,6 +91,11 @@ def _txt(v):
     return str(v)
 
 
+def _breed(v):
+    from database.seed import GUEST_BREEDS
+    return GUEST_BREEDS.get(v, str(v))
+
+
 # (ключ вкладки, функція запиту, колонки [(ключ заголовка, ширина, вирівнювання, формат)], опис SQL-прийомів)
 TABS = [
     ("tab_top", stats.top_dishes,
@@ -96,9 +107,9 @@ TABS = [
       ("revenue", 170, "r", _money), ("avg", 170, "r", _dec), ("running", 200, "r", _money)],
      "Підзапит (сума кожного замовлення) · CASE-агрегати · SUM() OVER (ORDER BY день)"),
     ("tab_staff", stats.employee_stats,
-     [("employee", 280, "l", _txt), ("position", 170, "l", _txt), ("paid", 120, "r", _int),
-      ("cancelled", 130, "r", _int), ("revenue", 150, "r", _money), ("share", 130, "r", _pct)],
-     "LEFT JOIN 3 таблиць · GROUP BY · скалярний підзапит (частка від загальної виручки)"),
+     [("employee", 270, "l", _txt), ("position", 150, "l", _txt), ("prepared", 150, "r", _int),
+      ("served", 130, "r", _int), ("cancelled", 130, "r", _int), ("revenue", 150, "r", _money)],
+     "Корельовані скалярні підзапити (приготував / розніс / скасовано) · CASE за посадою"),
     ("tab_tables", stats.table_stats,
      [("table", 150, "l", _int), ("place", 200, "l", _txt), ("paid", 200, "r", _int),
       ("revenue", 200, "r", _money), ("avg", 200, "r", _dec)],
@@ -111,6 +122,11 @@ TABS = [
      [("product", 320, "l", _txt), ("unit", 120, "l", _txt), ("used", 220, "r", _dec),
       ("cost", 220, "r", _money)],
      "JOIN 5 таблиць (замовлення → страви → склад → продукти) · GROUP BY · HAVING"),
+    ("tab_guests", stats.guest_stats,
+     [("guest", 220, "l", _breed), ("paid", 130, "r", _int), ("cancelled", 130, "r", _int),
+      ("revenue", 140, "r", _money), ("avg", 130, "r", _dec), ("left", 190, "r", _pct),
+      ("place_rank", 110, "r", _int)],
+     "GROUP BY окрас · COUNT(DISTINCT CASE …) · HAVING · RANK() OVER (ORDER BY виручка)"),
     ("tab_profit", stats.dish_profit,
      [("dish", 280, "l", _txt), ("sold", 110, "r", _int), ("revenue", 140, "r", _money),
       ("cogs", 170, "r", _money), ("profit", 140, "r", _money), ("margin", 130, "r", _pct)],

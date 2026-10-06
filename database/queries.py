@@ -17,7 +17,7 @@ from database.seed import EMPLOYEES, MENU_ITEMS, TABLES
 _OFFLINE_MENU = [{"id": i, "name": n, "categoryid": c, "price": p, "cookingtimemin": t}
                  for i, n, c, p, t, _ in MENU_ITEMS]
 _OFFLINE_TABLES = [{"id": i, "tablenumber": n, "capacity": c, "location": l} for i, n, c, l in TABLES]
-_OFFLINE_EMPLOYEES = [{"id": i, "fullname": f, "position": p} for i, f, p, _, _ in EMPLOYEES]
+_OFFLINE_EMPLOYEES = [{"id": i, "fullname": f, "position": p} for i, f, p in EMPLOYEES]
 
 
 # ===========================================================
@@ -86,12 +86,13 @@ def get_ingredients(menu_item_id: int) -> list:
 # ===========================================================
 # Запити на запис (ігрові події)
 # ===========================================================
-def create_order(table_id: int, employee_id: int, gameday: Optional[int] = None) -> Optional[int]:
+def create_order(table_id: int, employee_id: int, gameday: Optional[int] = None,
+                 guestbreed: Optional[str] = None) -> Optional[int]:
     """Створити нове замовлення, повернути його ID."""
     try:
         with orm.session() as s:
             order = Order(tableid=table_id, employeeid=employee_id, status="відкрито",
-                          gameday=gameday, orderdatetime=datetime.now())
+                          gameday=gameday, guestbreed=guestbreed, orderdatetime=datetime.now())
             s.add(order)
             s.flush()
             return order.id
@@ -122,6 +123,20 @@ def _set_status(order_id: int, status: str) -> bool:
         return True
     except Exception as e:
         print(f"[DB] set_status: {e}")
+        return False
+
+
+def assign_waiter(order_id: int, waiter_id: int) -> bool:
+    """Записати, який офіціант розніс замовлення гостю."""
+    try:
+        with orm.session() as s:
+            order = s.get(Order, order_id)
+            if order is None:
+                return False
+            order.waiterid = waiter_id
+        return True
+    except Exception as e:
+        print(f"[DB] assign_waiter: {e}")
         return False
 
 

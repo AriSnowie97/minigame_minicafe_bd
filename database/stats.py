@@ -78,23 +78,45 @@ def revenue_by_gameday() -> list:
 
 
 # ----------------------------------------------------------------
-# 3. Співробітники: LEFT JOIN трьох таблиць + скалярний підзапит (частка від загальної виручки)
+# 3. Персонал: корельовані скалярні підзапити (приготовано / рознесено / скасовано / виручка)
 # ----------------------------------------------------------------
 def employee_stats() -> list:
-    """(співробітник, посада, оплачено, скасовано, виручка, частка % від усієї виручки)"""
-    total_paid = (select(func.coalesce(func.sum(LINE_SUM), 0))
-                  .select_from(OrderItem).join(Order, Order.id == OrderItem.orderid)
-                  .where(PAID).scalar_subquery())
+    """(співробітник, посада, приготував, розніс, скасовано, виручка за свою роль)"""
+    def count_where(*cond):
+        return (select(func.count(Order.id)).where(*cond).correlate(Employee).scalar_subquery())
+
+    def revenue_where(*cond):
+        return (select(func.coalesce(func.sum(LINE_SUM), 0))
+                .select_from(OrderItem).join(Order, Order.id == OrderItem.orderid)
+                .where(*cond).correlate(Employee).scalar_subquery())
+
+    prepared = count_where(Order.employeeid == Employee.id, PAID)
+    served = count_where(Order.waiterid == Employee.id, PAID)
+    cancelled = count_where(Order.employeeid == Employee.id, CANCELLED)
+    revenue = case((Employee.position == "офіціант", revenue_where(Order.waiterid == Employee.id, PAID)),
+                   else_=revenue_where(Order.employeeid == Employee.id, PAID))
+    stmt = (select(Employee.fullname, Employee.position, prepared, served, cancelled, revenue)
+            .order_by(revenue.desc(), Employee.id))
+    return _run(stmt)
+
+
+# ----------------------------------------------------------------
+# 3.1. Гості-котики: GROUP BY окрас + HAVING + RANK() OVER (ORDER BY виручка)
+# ----------------------------------------------------------------
+def guest_stats() -> list:
+    """(окрас, оплачено, пішли без замовлення, виручка, середній чек, % невдоволених, місце)"""
+    paid_orders = func.count(func.distinct(case((PAID, Order.id))))
+    cancelled = func.count(func.distinct(case((CANCELLED, Order.id))))
     revenue = func.coalesce(func.sum(case((PAID, LINE_SUM), else_=0)), 0)
-    stmt = (select(Employee.fullname, Employee.position,
-                   func.count(func.distinct(case((PAID, Order.id)))),
-                   func.count(func.distinct(case((CANCELLED, Order.id)))),
-                   revenue,
-                   100.0 * revenue / func.nullif(total_paid, 0))
-            .select_from(Employee)
-            .outerjoin(Order, Order.employeeid == Employee.id)
+    stmt = (select(Order.guestbreed, paid_orders, cancelled, revenue,
+                   revenue / func.nullif(paid_orders, 0),
+                   100.0 * cancelled / func.nullif(paid_orders + cancelled, 0),
+                   func.rank().over(order_by=revenue.desc()))
+            .select_from(Order)
             .outerjoin(OrderItem, OrderItem.orderid == Order.id)
-            .group_by(Employee.id, Employee.fullname, Employee.position)
+            .where(Order.guestbreed.is_not(None))
+            .group_by(Order.guestbreed)
+            .having(func.count(func.distinct(Order.id)) > 0)
             .order_by(revenue.desc()))
     return _run(stmt)
 

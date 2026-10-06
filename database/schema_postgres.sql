@@ -42,13 +42,19 @@ CREATE TABLE IF NOT EXISTS cafetables (
     location    VARCHAR(30)
 );
 
+-- Персонал кафе — котики-персонажі гри
 CREATE TABLE IF NOT EXISTS employees (
     id       INT PRIMARY KEY,
     fullname VARCHAR(100) NOT NULL,
-    position VARCHAR(20) NOT NULL CHECK (position IN ('офіціант', 'бариста', 'кухар', 'адміністратор')),
-    phone    VARCHAR(20) NOT NULL UNIQUE,
-    hiredate DATE NOT NULL
+    position VARCHAR(20) NOT NULL
 );
+
+-- Для баз, створених старою версією скрипта: прибираємо зайве (телефони, дати, «адміністратор»)
+ALTER TABLE employees DROP COLUMN IF EXISTS phone;
+ALTER TABLE employees DROP COLUMN IF EXISTS hiredate;
+ALTER TABLE employees DROP CONSTRAINT IF EXISTS employees_position_check;
+DELETE FROM employees WHERE id > 3;
+ALTER TABLE employees ADD CONSTRAINT employees_position_check CHECK (position IN ('офіціант', 'бариста', 'кухар'));
 
 CREATE TABLE IF NOT EXISTS orders (
     id            SERIAL PRIMARY KEY,
@@ -59,8 +65,10 @@ CREATE TABLE IF NOT EXISTS orders (
                   CHECK (status IN ('відкрито', 'оплачено', 'скасовано'))
 );
 
--- Ігровий день, у який зроблено замовлення (для статистики по днях)
+-- Ігровий день, офіціант, який розніс замовлення, та окрас гостя-котика (для статистики)
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS gameday INT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS waiterid INT REFERENCES employees(id);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS guestbreed VARCHAR(20);
 
 CREATE TABLE IF NOT EXISTS orderitems (
     id           SERIAL PRIMARY KEY,
@@ -159,10 +167,9 @@ INSERT INTO cafetables (id, tablenumber, capacity, location) VALUES
     (10, 10, 2, 'зал')
 ON CONFLICT DO NOTHING;
 
--- Співробітники: гра прив'язує замовлення до першого (id = 1)
-INSERT INTO employees (id, fullname, position, phone, hiredate) VALUES
-    (1, 'Коваленко Ірина',   'бариста',       '+380671000001', '2024-03-01'),
-    (2, 'Петренко Олег',     'офіціант',      '+380671000002', '2024-05-15'),
-    (3, 'Сидоренко Марія',   'кухар',         '+380671000003', '2023-11-20'),
-    (4, 'Бондаренко Андрій', 'адміністратор', '+380671000004', '2022-09-10')
-ON CONFLICT DO NOTHING;
+-- Співробітники: гра записує замовлення на того, хто готує (бариста або кухар), і на офіціанта, який його розніс
+INSERT INTO employees (id, fullname, position) VALUES
+    (1, 'Бариста Мура',     'бариста'),
+    (2, 'Офіціант Мурлик',  'офіціант'),
+    (3, 'Шеф-кухар Мурчик', 'кухар')
+ON CONFLICT (id) DO UPDATE SET fullname = EXCLUDED.fullname, position = EXCLUDED.position;
