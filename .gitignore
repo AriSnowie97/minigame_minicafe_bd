@@ -3,3 +3,4 @@ __pycache__/
 .env
 assets/.cache/
 screenshot_*.png
+dist/

@@ -199,17 +199,20 @@ class Customer:
             bob = int(math.sin(self.anim_t * 1.5) * 1.0)
 
         sprite_name = f"cat_{self.breed}_{pose}"
-        sprite_path = resource_path(os.path.join("assets", "sprites", f"{sprite_name}.png"))
+
+        def _sprite_exists(name: str) -> bool:
+            # В .exe лежат только готовые уменьшенные спрайты из assets/.cache
+            return (os.path.exists(resource_path(os.path.join("assets", "sprites", f"{name}.png"))) or
+                    os.path.exists(resource_path(os.path.join("assets", ".cache", f"{name}.png"))))
 
         # Если для этого окраса конкретная поза ещё в процессе — берём ближайший готовый спрайт
-        if not os.path.exists(sprite_path):
+        if not _sprite_exists(sprite_name):
             fallback_breed = "cream" if self.breed == "ginger" else "graytabby"
             fallback_name = f"cat_{fallback_breed}_{pose}"
-            if os.path.exists(resource_path(os.path.join("assets", "sprites", f"{fallback_name}.png"))):
+            if _sprite_exists(fallback_name):
                 sprite_name = fallback_name
-                sprite_path = resource_path(os.path.join("assets", "sprites", f"{fallback_name}.png"))
 
-        has_sprite = os.path.exists(sprite_path)
+        has_sprite = _sprite_exists(sprite_name)
 
         if has_sprite:
             if pose == "walk":
