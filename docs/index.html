@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MiniCafe — затишне котяче кафе</title>
+<meta name="description" content="MiniCafe — ізометрична гра про кафе, де гостей обслуговують котики. Завантажте безкоштовно для Windows: зал, кухня, літня тераса, офіціант і шеф-кухар Мурчик.">
+<meta property="og:title" content="MiniCafe — затишне котяче кафе">
+<meta property="og:description" content="Керуйте кафе, у якому гості — котики. Завантажте гру для Windows.">
+<meta property="og:image" content="img/hall.jpg">
+<link rel="icon" type="image/png" href="img/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Rubik:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --terracotta: #b25c40;
+    --terracotta-dark: #944a31;
+    --sage: #616657;
+    --sage-soft: #909483;
+    --cream: #fff8eb;
+    --paper: #fffdf8;
+    --rose: #c98d7c;
+    --ink: #2b2420;
+    --muted: #6f655d;
+    --line: #eadfcf;
+    --shadow: 0 10px 30px rgba(70, 40, 25, .14);
+    --radius: 20px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --cream: #2a2420;
+      --paper: #342c27;
+      --ink: #f6ece0;
+      --muted: #c9bcae;
+      --line: #4a3f38;
+      --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+  body {
+    margin: 0; background: var(--cream); color: var(--ink);
+    font-family: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 17px; line-height: 1.6;
+  }
+  h1, h2, h3 { font-family: "Rubik", "Nunito", sans-serif; line-height: 1.2; margin: 0; }
+  a { color: var(--terracotta); }
+  img { max-width: 100%; height: auto; display: block; }
+  .wrap { width: min(1120px, 100% - 40px); margin-inline: auto; }
+
+  /* --- Навігація --- */
+  .nav {
+    position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--paper) 92%, transparent);
+    backdrop-filter: blur(8px); border-bottom: 1px solid var(--line);
+  }
+  .nav .wrap { display: flex; align-items: center; gap: 18px; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 10px; font: 700 20px "Rubik", sans-serif; color: var(--ink); text-decoration: none; }
+  .brand img { width: 38px; height: 38px; }
+  .nav ul { display: flex; gap: 6px; list-style: none; margin: 0 0 0 auto; padding: 0; }
+  .nav li a { display: block; padding: 8px 12px; border-radius: 10px; color: var(--ink); text-decoration: none; font-weight: 700; font-size: 15px; }
+  .nav li a:hover { background: color-mix(in srgb, var(--terracotta) 14%, transparent); }
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px; padding: 14px 26px; border-radius: 16px;
+    background: var(--terracotta); color: #fff; font: 700 18px "Nunito", sans-serif; text-decoration: none;
+    box-shadow: 0 6px 0 var(--terracotta-dark), var(--shadow); transition: transform .12s, box-shadow .12s;
+  }
+  .btn:hover { transform: translateY(2px); box-shadow: 0 4px 0 var(--terracotta-dark), var(--shadow); }
+  .btn:active { transform: translateY(6px); box-shadow: 0 0 0 var(--terracotta-dark); }
+  .btn.small { padding: 9px 18px; font-size: 15px; box-shadow: 0 4px 0 var(--terracotta-dark); }
+  .btn.ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 2px var(--sage-soft); }
+  .btn.ghost:hover { background: color-mix(in srgb, var(--sage-soft) 18%, transparent); }
+
+  /* --- Шапка --- */
+  .hero {
+    position: relative; overflow: hidden; padding: 56px 0 72px;
+    background: linear-gradient(rgba(255, 248, 235, .86), rgba(255, 248, 235, .94)), url("img/cobble.jpg") center / 420px;
+  }
+  @media (prefers-color-scheme: dark) {
+    .hero { background: linear-gradient(rgba(42, 36, 32, .88), rgba(42, 36, 32, .95)), url("img/cobble.jpg") center / 420px; }
+  }
+  .hero .wrap { display: grid; grid-template-columns: 1.05fr 1fr; gap: 40px; align-items: center; }
+  .hero .logo { width: min(460px, 100%); margin-bottom: 18px; filter: drop-shadow(0 6px 14px rgba(70, 40, 25, .25)); }
+  .hero h1 { font-size: clamp(30px, 4.4vw, 46px); font-weight: 700; margin-bottom: 14px; }
+  .hero p.lead { font-size: 19px; color: var(--muted); margin: 0 0 26px; max-width: 520px; }
+  .cta { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  .meta { margin-top: 14px; font-size: 14px; color: var(--muted); }
+  .shot { border-radius: var(--radius); box-shadow: var(--shadow); border: 4px solid var(--paper); }
+  .hero .shot { transform: rotate(1.4deg); }
+
+  /* --- Секції --- */
+  section { padding: 76px 0; }
+  section.alt { background: var(--paper); border-block: 1px solid var(--line); }
+  .eyebrow { font: 700 14px "Nunito", sans-serif; color: var(--terracotta); text-transform: uppercase; letter-spacing: .12em; margin-bottom: 8px; }
+  h2 { font-size: clamp(26px, 3.4vw, 36px); font-weight: 700; margin-bottom: 14px; }
+  .intro { color: var(--muted); max-width: 680px; margin: 0 0 36px; }
+  .grid { display: grid; gap: 20px; }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  .g2 { grid-template-columns: repeat(2, 1fr); }
+  .card { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); }
+  section.alt .card { background: var(--cream); }
+  .card h3 { font-size: 20px; margin-bottom: 8px; }
+  .card p { margin: 0; color: var(--muted); }
+  .icon { font-size: 30px; margin-bottom: 10px; }
+
+  /* --- Персонажі --- */
+  .char { text-align: center; }
+  .char .portrait {
+    height: 190px; display: grid; place-items: center; margin-bottom: 14px; border-radius: 16px;
+    background: radial-gradient(circle at 50% 70%, color-mix(in srgb, var(--rose) 38%, transparent), transparent 70%);
+  }
+  .char .portrait img { max-height: 176px; width: auto; filter: drop-shadow(0 6px 8px rgba(70, 40, 25, .22)); transition: transform .25s; }
+  .char:hover .portrait img { transform: translateY(-4px) scale(1.04); }
+  .tag { display: inline-block; margin-top: 12px; padding: 4px 12px; border-radius: 999px; font: 700 13px "Nunito", sans-serif;
+         background: color-mix(in srgb, var(--sage) 16%, transparent); color: var(--sage); }
+  @media (prefers-color-scheme: dark) { .tag { color: #d7dcc9; } }
+  .guests { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin-top: 28px; }
+  .guest { text-align: center; background: var(--paper); border: 1px solid var(--line); border-radius: 16px; padding: 14px 8px 12px; }
+  .guest img { height: 92px; width: auto; margin: 0 auto 8px; }
+  .guest b { display: block; font-size: 15px; }
+  .guest span { font-size: 13px; color: var(--muted); }
+
+  /* --- Меню --- */
+  .menu-block h3 { margin: 28px 0 14px; font-size: 20px; }
+  .dishes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+  .dish { background: var(--paper); border: 1px solid var(--line); border-radius: 16px; padding: 12px 10px; text-align: center; }
+  .dish img { height: 72px; width: auto; margin: 0 auto 6px; }
+  .dish b { display: block; font-size: 15px; }
+  .dish span { font-size: 14px; color: var(--terracotta); font-weight: 800; }
+  .note { margin: 6px 0 0; color: var(--muted); font-size: 15px; }
+
+  /* --- Галерея --- */
+  .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .gallery figure { margin: 0; }
+  .gallery .big { grid-column: span 2; }
+  .gallery img { border-radius: 16px; border: 4px solid var(--paper); box-shadow: var(--shadow); width: 100%; transition: transform .2s; }
+  .gallery a:hover img { transform: translateY(-3px); }
+  .gallery figcaption { margin-top: 8px; font-size: 14px; color: var(--muted); text-align: center; }
+
+  /* --- Як грати --- */
+  .steps { counter-reset: s; display: grid; gap: 16px; padding: 0; list-style: none; margin: 0; }
+  .steps li { counter-increment: s; display: grid; grid-template-columns: 52px 1fr; gap: 16px; align-items: start;
+              background: var(--cream); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; }
+  .steps li::before { content: counter(s); width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center;
+                      background: var(--terracotta); color: #fff; font: 700 22px "Rubik", sans-serif; }
+  .steps b { display: block; font-size: 18px; margin-bottom: 2px; }
+  .steps span { color: var(--muted); }
+  .rules { margin-top: 24px; padding: 18px 22px; border-radius: 16px; background: color-mix(in srgb, var(--terracotta) 12%, transparent);
+           border: 1px solid color-mix(in srgb, var(--terracotta) 35%, transparent); }
+  .rules b { color: var(--terracotta); }
+  .keys { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 18px; font-size: 15px; color: var(--muted); }
+  kbd { background: var(--paper); border: 1px solid var(--line); border-bottom-width: 3px; border-radius: 6px; padding: 1px 8px; font: 700 13px "Nunito", sans-serif; color: var(--ink); }
+
+  /* --- Під капотом --- */
+  .tech li { margin: 4px 0; }
+  code { background: color-mix(in srgb, var(--sage) 16%, transparent); padding: 1px 7px; border-radius: 6px; font-size: 14.5px; }
+
+  /* --- Завантаження --- */
+  .download { text-align: center; background: linear-gradient(135deg, var(--sage), #4d523f); color: #fff; border-radius: 28px; padding: 54px 28px; box-shadow: var(--shadow); }
+  .download h2 { color: #fff; }
+  .download p { color: #e7eadb; max-width: 560px; margin: 0 auto 26px; }
+  .download .btn { background: var(--cream); color: var(--terracotta-dark); box-shadow: 0 6px 0 #c9b9a3, 0 12px 24px rgba(0, 0, 0, .25); font-size: 21px; padding: 18px 34px; }
+  .download .btn:hover { box-shadow: 0 4px 0 #c9b9a3, 0 8px 18px rgba(0, 0, 0, .25); }
+  .req { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 26px; margin-top: 26px; font-size: 15px; color: #e7eadb; }
+  .req span::before { content: "✓ "; font-weight: 800; }
+  .how { margin: 34px auto 0; max-width: 640px; text-align: left; background: rgba(255, 255, 255, .1); border-radius: 18px; padding: 18px 24px; }
+  .how ol { margin: 8px 0 0; padding-left: 22px; }
+  .how li { margin: 4px 0; }
+
+  footer { padding: 36px 0 48px; text-align: center; color: var(--muted); font-size: 15px; }
+  footer a { color: inherit; }
+
+  @media (max-width: 900px) {
+    .hero .wrap, .g2 { grid-template-columns: 1fr; }
+    .g3, .g4 { grid-template-columns: 1fr 1fr; }
+    .guests { grid-template-columns: repeat(3, 1fr); }
+    .gallery { grid-template-columns: 1fr 1fr; }
+    .gallery .big { grid-column: span 2; }
+    .nav ul { display: none; }
+    .nav .btn { margin-left: auto; }
+    .hero .shot { transform: none; }
+  }
+  @media (max-width: 560px) {
+    section { padding: 56px 0; }
+    .g3, .g4, .g2, .gallery { grid-template-columns: 1fr; }
+    .gallery .big { grid-column: auto; }
+    .guests { grid-template-columns: repeat(2, 1fr); }
+    .steps li { grid-template-columns: 44px 1fr; }
+    .steps li::before { width: 44px; height: 44px; font-size: 19px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="img/favicon.png" alt="">MiniCafe</a>
+    <ul>
+      <li><a href="#about">Про гру</a></li>
+      <li><a href="#characters">Персонажі</a></li>
+      <li><a href="#menu">Меню</a></li>
+      <li><a href="#screens">Скриншоти</a></li>
+      <li><a href="#howto">Як грати</a></li>
+    </ul>
+    <a class="btn small" href="#download">Завантажити</a>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- Шапка -->
+  <div class="hero">
+    <div class="wrap">
+      <div>
+        <img class="logo" src="img/logo.png" alt="MiniCafe">
+        <h1>Керуйте затишним кафе, де гості — котики</h1>
+        <p class="lead">Ізометрична гра про маленьке кафе: приймайте замовлення, варіть каву, наймайте офіціанта та шеф-кухаря, відкривайте літню терасу й стежте, щоб жоден котик не пішов голодним.</p>
+        <div class="cta">
+          <a class="btn" id="hero-download" href="https://github.com/AriSnowie97/minigame_minicafe_bd/releases/latest/download/MiniCafe.exe">⬇ Завантажити для Windows</a>
+          <a class="btn ghost" href="#screens">Дивитись скриншоти</a>
+        </div>
+        <p class="meta">Безкоштовно · Windows 10/11 (64-біт) · один файл, без встановлення</p>
+      </div>
+      <a href="img/hall.jpg"><img class="shot" src="img/hall.jpg" width="1280" height="720" alt="Зал кафе MiniCafe з гостями-котиками, баристою й офіціантом"></a>
+    </div>
+  </div>
+
+  <!-- Про гру -->
+  <section id="about">
+    <div class="wrap">
+      <div class="eyebrow">Про гру</div>
+      <h2>Один день — одна зміна в кафе</h2>
+      <p class="intro">Кожен ігровий день триває 3 хвилини. Гості приходять, чекають, їдять і платять. Чим краще сервіс — тим вищий рейтинг і більше монет на розвиток кафе.</p>
+      <div class="grid g3">
+        <div class="card"><div class="icon">🏠</div><h3>Три кімнати</h3><p>Затишний зал, справжня кухня зі своєю плитою й духовкою та літня тераса з видом на двір. Між кімнатами можна перемикатися одним кліком.</p></div>
+        <div class="card"><div class="icon">📈</div><h3>Розвиток і магазин</h3><p>Заробляйте монети та купуйте покращення: офіціанта, терасу, шеф-кухаря, нові страви, килимок біля дверей, VIP-крісло й велику монстеру.</p></div>
+        <div class="card"><div class="icon">🌇</div><h3>День і вечір</h3><p>До кінця зміни двір плавно змінюється: на бруківці з'являється вечірнє світло, а ліхтар біля кафе починає світитися.</p></div>
+        <div class="card"><div class="icon">⭐</div><h3>Рейтинг кафе</h3><p>Задоволені гості піднімають рейтинг, а ті, що пішли без замовлення, — знижують. Менше трьох зірок, і кафе зачиняється.</p></div>
+        <div class="card"><div class="icon">🐾</div><h3>Живі персонажі</h3><p>Кожен котик має свій характер і терпіння. Персонал говорить, що саме робить, і сам перебігає між кімнатами.</p></div>
+        <div class="card"><div class="icon">📊</div><h3>Статистика</h3><p>Екран «Статистика» показує найкращі страви, виручку по днях, роботу персоналу й прибутковість — усе з бази даних.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Персонажі -->
+  <section id="characters" class="alt">
+    <div class="wrap">
+      <div class="eyebrow">Персонажі</div>
+      <h2>Команда кафе та гості</h2>
+      <p class="intro">Всі працівники — котики. Двох із них потрібно найняти в магазині, і кафе одразу стає схожим на справжнє.</p>
+      <div class="grid g3">
+        <div class="card char">
+          <div class="portrait"><img src="img/barista_idle.png" alt="Бариста"></div>
+          <h3>Бариста</h3>
+          <p>Рудий котик за барною стійкою. Варить каву, чай, капучино, лате та айс-лате, видає печиво, круасани й тортики з вітрини.</p>
+          <span class="tag">З першого дня</span>
+        </div>
+        <div class="card char">
+          <div class="portrait"><img src="img/cat_waiter_idle.png" alt="Котик-офіціант"></div>
+          <h3>Котик-офіціант</h3>
+          <p>Приймає замовлення, відносить їх на кухню або до стійки, а потім сам забирає готове й несе гостям, навіть на терасу.</p>
+          <span class="tag">120 монет</span>
+        </div>
+        <div class="card char">
+          <div class="portrait"><img src="img/cat_cook_idle.png" alt="Шеф-кухар Мурчик"></div>
+          <h3>Шеф-кухар Мурчик</h3>
+          <p>Відкриває кухню й нові страви. Веде до трьох замовлень одразу, ходить від плити до духовки й столу та гукає офіціанта, коли страва готова.</p>
+          <span class="tag">160 монет</span>
+        </div>
+      </div>
+
+      <h3 style="margin:44px 0 0;font-size:22px">Гості-котики</h3>
+      <p class="note">Шість окрасів, і в кожного свій настрій: котик сідає, обирає страву, чекає, їсть і платить.</p>
+      <div class="guests">
+        <div class="guest"><img src="img/cat_caramel_happy.png" alt="Карамелька"><b>Карамелька</b><span>карамельний</span></div>
+        <div class="guest"><img src="img/cat_chocolate_happy.png" alt="Шоколадка"><b>Шоколадка</b><span>шоколадний</span></div>
+        <div class="guest"><img src="img/cat_cream_happy.png" alt="Кремка"><b>Кремка</b><span>кремовий</span></div>
+        <div class="guest"><img src="img/cat_ginger_happy.png" alt="Рудик"><b>Рудик</b><span>рудий смугастий</span></div>
+        <div class="guest"><img src="img/cat_graytabby_happy.png" alt="Сіренька"><b>Сіренька</b><span>сірий таббі</span></div>
+        <div class="guest"><img src="img/cat_lightgray_happy.png" alt="Світлячок"><b>Світлячок</b><span>світло-сірий</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Меню -->
+  <section id="menu">
+    <div class="wrap menu-block">
+      <div class="eyebrow">Меню</div>
+      <h2>Що замовляють котики</h2>
+      <p class="intro">Базове меню доступне одразу, а решта страв відкривається в магазині. Страви кухні готує шеф-кухар.</p>
+
+      <h3>☕ Бариста — базове меню</h3>
+      <div class="dishes">
+        <div class="dish"><img src="img/item_coffee_cup.png" alt=""><b>Кава</b><span>50</span></div>
+        <div class="dish"><img src="img/item_takeaway_cup.png" alt=""><b>Кава з собою</b><span>45</span></div>
+        <div class="dish"><img src="img/item_black_tea.png" alt=""><b>Чай чорний</b><span>40</span></div>
+        <div class="dish"><img src="img/item_cappuccino.png" alt=""><b>Капучино</b><span>65</span></div>
+        <div class="dish"><img src="img/item_latte.png" alt=""><b>Лате</b><span>60</span></div>
+        <div class="dish"><img src="img/item_iced_coffee.png" alt=""><b>Айс лате</b><span>85</span></div>
+      </div>
+
+      <h3>🥐 Бариста — розширене меню (магазин)</h3>
+      <div class="dishes">
+        <div class="dish"><img src="img/item_cookies.png" alt=""><b>Печиво</b><span>65</span></div>
+        <div class="dish"><img src="img/item_croissant.png" alt=""><b>Круасан</b><span>55</span></div>
+        <div class="dish"><img src="img/item_cake.png" alt=""><b>Тортик</b><span>110</span></div>
+      </div>
+
+      <h3>🍲 Кухня Мурчика (магазин + шеф-кухар)</h3>
+      <div class="dishes">
+        <div class="dish"><img src="img/item_bruschetta.png" alt=""><b>Брускета</b><span>70</span></div>
+        <div class="dish"><img src="img/item_syrniki.png" alt=""><b>Сирники</b><span>90</span></div>
+        <div class="dish"><img src="img/item_omelette_bacon.png" alt=""><b>Омлет з беконом</b><span>100</span></div>
+        <div class="dish"><img src="img/item_caesar_salad.png" alt=""><b>Салат Цезар</b><span>105</span></div>
+        <div class="dish"><img src="img/item_tiramisu.png" alt=""><b>Тірамісу</b><span>120</span></div>
+        <div class="dish"><img src="img/item_borscht.png" alt=""><b>Борщ</b><span>130</span></div>
+      </div>
+      <p class="note">Число під назвою — скільки монет приносить страва.</p>
+    </div>
+  </section>
+
+  <!-- Скриншоти -->
+  <section id="screens" class="alt">
+    <div class="wrap">
+      <div class="eyebrow">Скриншоти</div>
+      <h2>Заглянемо всередину</h2>
+      <p class="intro">Усі кадри зроблено просто з гри.</p>
+      <div class="gallery">
+        <figure class="big"><a href="img/hall.jpg"><img src="img/hall.jpg" loading="lazy" alt="Зал кафе"></a><figcaption>Зал: гості чекають замовлення, офіціант несе страву</figcaption></figure>
+        <figure><a href="img/menu.jpg"><img src="img/menu.jpg" loading="lazy" alt="Головне меню"></a><figcaption>Головне меню</figcaption></figure>
+        <figure><a href="img/kitchen.jpg"><img src="img/kitchen.jpg" loading="lazy" alt="Кухня"></a><figcaption>Кухня: Мурчик готує одразу кілька страв</figcaption></figure>
+        <figure><a href="img/terrace.jpg"><img src="img/terrace.jpg" loading="lazy" alt="Літня тераса"></a><figcaption>Літня тераса</figcaption></figure>
+        <figure><a href="img/evening.jpg"><img src="img/evening.jpg" loading="lazy" alt="Вечір у кафе"></a><figcaption>Вечір: двір набуває теплого світла</figcaption></figure>
+        <figure class="big"><a href="img/stats.jpg"><img src="img/stats.jpg" loading="lazy" alt="Екран статистики"></a><figcaption>Статистика кафе з бази даних: топ страв, виручка, персонал, прибуток</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- Як грати -->
+  <section id="howto">
+    <div class="wrap">
+      <div class="eyebrow">Як грати</div>
+      <h2>Керування — лише мишею</h2>
+      <p class="intro">Гра навчається за один день. Ось як проходить типове замовлення:</p>
+      <ol class="steps">
+        <li><div><b>Гість сідає за столик</b><span>Він на хвилинку обирає страву, а потім над ним з'являється бульбашка із замовленням. Терпіння гостя поступово закінчується.</span></div></li>
+        <li><div><b>Клікніть по столику</b><span>Без офіціанта ви приймаєте замовлення самі й клікаєте по баристі, щоб він почав готувати. З офіціантом він сам прийме замовлення й передасть його на кухню.</span></div></li>
+        <li><div><b>Бариста або кухар готує</b><span>Напої й випічка — бариста, страви кухні — шеф-кухар. Над столиком видно, як просувається готовка.</span></div></li>
+        <li><div><b>Подайте страву</b><span>Готове блюдо чекає на стійці або на кухні. Заберіть його й клікніть по столику (або тільки клікніть по столику, якщо є офіціант).</span></div></li>
+        <li><div><b>Отримайте монети й рейтинг</b><span>Задоволений гість платить і піднімає рейтинг. Витрачайте монети в магазині й розвивайте кафе.</span></div></li>
+      </ol>
+      <div class="rules"><b>Увага:</b> якщо рейтинг падає нижче 3 зірок або скасовується понад 5 замовлень, кафе зачиняється, і гру треба починати спочатку.</div>
+      <div class="keys">
+        <span><kbd>1</kbd> / <kbd>K</kbd> кухня</span>
+        <span><kbd>2</kbd> / <kbd>H</kbd> зал</span>
+        <span><kbd>3</kbd> / <kbd>T</kbd> тераса</span>
+        <span><kbd>←</kbd> <kbd>→</kbd> перехід між кімнатами</span>
+        <span><kbd>Esc</kbd> меню</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Під капотом -->
+  <section class="alt" id="tech">
+    <div class="wrap">
+      <div class="eyebrow">Для цікавих</div>
+      <h2>Під капотом</h2>
+      <div class="grid g2">
+        <div class="card">
+          <h3>Технології</h3>
+          <ul class="tech">
+            <li>Мова <code>Python</code> та бібліотека <code>pygame-ce</code></li>
+            <li>База даних <code>PostgreSQL</code> на Railway</li>
+            <li>ORM <code>SQLAlchemy</code> для всіх запитів гри</li>
+            <li>Без інтернету працює на локальній <code>SQLite</code></li>
+            <li>Один <code>.exe</code> збирається через PyInstaller</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Складні запити до БД</h3>
+          <p>Екран «Статистика» будується запитами з JOIN кількох таблиць, GROUP BY / HAVING, підзапитами та віконними функціями (<code>RANK() OVER</code>, <code>SUM() OVER</code>). Кожна вкладка показує, який саме прийом SQL вона використовує.</p>
+        </div>
+      </div>
+      <p class="note" style="margin-top:20px">Вихідний код відкритий: <a href="https://github.com/AriSnowie97/minigame_minicafe_bd">github.com/AriSnowie97/minigame_minicafe_bd</a></p>
+    </div>
+  </section>
+
+  <!-- Завантаження -->
+  <section id="download">
+    <div class="wrap">
+      <div class="download">
+        <h2>Завантажте MiniCafe</h2>
+        <p>Один файл для Windows. Розпаковувати нічого не треба: запустіть його подвійним кліком і граймо.</p>
+        <a class="btn" href="https://github.com/AriSnowie97/minigame_minicafe_bd/releases/latest/download/MiniCafe.exe">⬇ MiniCafe.exe</a>
+        <div class="req"><span>Windows 10 / 11, 64-біт</span><span>≈ 65 МБ</span><span>Без встановлення</span><span>Безкоштовно</span></div>
+        <div class="how">
+          <b>Як запустити</b>
+          <ol>
+            <li>Завантажте <code>MiniCafe.exe</code> і запустіть його.</li>
+            <li>Якщо Windows показала «Windows захистила ваш ПК», натисніть <b>«Докладніше» → «Виконати в будь-якому разі»</b>. Файл не підписаний, тому система його не знає.</li>
+            <li>Перший запуск може тривати кілька секунд: гра розпаковує свої картинки.</li>
+            <li>Інтернет не обов'язковий, а з ним у грі працює онлайн-база та статистика.</li>
+          </ol>
+        </div>
+        <p style="margin:24px auto 0;font-size:15px">Усі версії: <a style="color:#fff" href="https://github.com/AriSnowie97/minigame_minicafe_bd/releases">сторінка релізів на GitHub</a></p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    MiniCafe · зроблено з любов'ю до котиків 🐾 ·
+    <a href="https://github.com/AriSnowie97/minigame_minicafe_bd">Код на GitHub</a>
+  </div>
+</footer>
+
+</body>
+</html>
