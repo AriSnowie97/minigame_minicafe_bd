@@ -5,6 +5,7 @@
     "play": "Play",
     "settings": "Settings",
     "quit": "Quit",
+    "stats": "Statistics",
     "subtitle": "Cozy Cat Cafe"
   },
   "hud": {
@@ -31,7 +32,7 @@
     "orders_done": "Orders served",
     "orders_cancelled": "Cancelled",
     "rating": "Rating",
-    "next_day": "Next Day →",
+    "next_day": "Next Day",
     "failed_title": "Cafe Closed!",
     "fail_rating": "Rating fell below 3 stars",
     "fail_orders": "More than 5 orders cancelled",

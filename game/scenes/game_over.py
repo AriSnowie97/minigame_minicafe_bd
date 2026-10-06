@@ -25,8 +25,10 @@ class GameOverScene:
         self.fail_reason = ""
 
         cx = WIDTH // 2
-        self.btn_shop = Button(pygame.Rect(cx - 90, 485, 180, 44),
+        self.btn_shop = Button(pygame.Rect(cx - 190, 485, 180, 44),
                                "Магазин", font_size=20)
+        self.btn_stats = Button(pygame.Rect(cx + 10, 485, 180, 44),
+                                locale.get("menu.stats"), font_size=20)
         self.btn_next = Button(pygame.Rect(cx - 190, 545, 180, 48),
                                locale.get("game_over.next_day"), font_size=20)
         self.btn_menu = Button(pygame.Rect(cx + 10,  545, 180, 48),
@@ -48,6 +50,7 @@ class GameOverScene:
         self._t         = 0.0
         self._coins_anim = 0.0
         self.shop_modal.close()
+        self.btn_stats.set_text(locale.get("menu.stats"))
         self.btn_next.set_text(locale.get("game_over.restart" if failed else "game_over.next_day"))
         self.btn_menu.set_text(locale.get("game_over.main_menu"))
 
@@ -61,6 +64,13 @@ class GameOverScene:
 
         if not self.failed and self.btn_shop.handle_event(event):
             self.shop_modal.open()
+            return
+
+        if self.btn_stats.handle_event(event):
+            self.manager.switch("stats", back="game_over", back_kwargs=dict(
+                day=self.day, money=self.money, rating=self.rating, orders_done=self.orders_done,
+                orders_bad=self.orders_bad, upgrades=self.upgrades, failed=self.failed,
+                fail_reason=self.fail_reason))
             return
 
         if self.btn_next.handle_event(event):
@@ -82,6 +92,7 @@ class GameOverScene:
         self._coins_anim = min(1.0, self._coins_anim + dt * 0.6)
         if not self.failed:
             self.btn_shop.update(dt)
+        self.btn_stats.update(dt)
         self.btn_next.update(dt)
         self.btn_menu.update(dt)
 
@@ -175,6 +186,7 @@ class GameOverScene:
         # 8. Кнопки
         if not self.failed:
             self.btn_shop.draw(surface)
+        self.btn_stats.draw(surface)
         self.btn_next.draw(surface)
         self.btn_menu.draw(surface)
 

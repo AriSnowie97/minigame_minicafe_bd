@@ -18,6 +18,7 @@ from game.scenes.main_menu     import MainMenuScene
 from game.scenes.cafe_hall     import CafeHallScene
 from game.scenes.settings_scene import SettingsScene
 from game.scenes.game_over     import GameOverScene
+from game.scenes.stats_scene    import StatsScene
 from database.connection       import get_connection
 
 
@@ -50,6 +51,7 @@ def main():
     manager.add("cafe_hall",  CafeHallScene(manager))
     manager.add("settings",   SettingsScene(manager))
     manager.add("game_over",  GameOverScene(manager))
+    manager.add("stats",      StatsScene(manager))
     manager.switch("main_menu")
 
     running = True

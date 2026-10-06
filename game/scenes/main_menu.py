@@ -24,8 +24,9 @@ class MainMenuScene:
     def _build_ui(self):
         cx = 880
         self.btn_play     = Button(pygame.Rect(cx - 150, 260, 300, 64), locale.get("menu.play"),     font_size=30)
-        self.btn_settings = Button(pygame.Rect(cx - 150, 350, 300, 64), locale.get("menu.settings"), font_size=26)
-        self.btn_quit     = Button(pygame.Rect(cx - 150, 440, 300, 64), locale.get("menu.quit"),     font_size=26)
+        self.btn_stats    = Button(pygame.Rect(cx - 150, 350, 300, 64), locale.get("menu.stats"),    font_size=26)
+        self.btn_settings = Button(pygame.Rect(cx - 150, 440, 300, 64), locale.get("menu.settings"), font_size=26)
+        self.btn_quit     = Button(pygame.Rect(cx - 150, 530, 300, 64), locale.get("menu.quit"),     font_size=26)
 
         # Кнопки выбора языка (маленькие)
         self.lang_buttons = []
@@ -34,7 +35,7 @@ class MainMenuScene:
             r = pygame.Rect(WIDTH - 180 + i * 58, 20, 52, 32)
             self.lang_buttons.append((code, label, r))
 
-        self._buttons = [self.btn_play, self.btn_settings, self.btn_quit]
+        self._buttons = [self.btn_play, self.btn_stats, self.btn_settings, self.btn_quit]
 
     def _build_decoration(self):
         # Случайные следы лап
@@ -53,6 +54,7 @@ class MainMenuScene:
 
     def _refresh_texts(self):
         self.btn_play.set_text(locale.get("menu.play"))
+        self.btn_stats.set_text(locale.get("menu.stats"))
         self.btn_settings.set_text(locale.get("menu.settings"))
         self.btn_quit.set_text(locale.get("menu.quit"))
 
@@ -60,6 +62,9 @@ class MainMenuScene:
     def handle_event(self, event: pygame.event.Event):
         if self.btn_play.handle_event(event):
             self.manager.switch("cafe_hall")
+
+        if self.btn_stats.handle_event(event):
+            self.manager.switch("stats", back="main_menu")
 
         if self.btn_settings.handle_event(event):
             self.manager.switch("settings")

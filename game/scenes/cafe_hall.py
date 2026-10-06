@@ -636,8 +636,12 @@ class CafeHallScene:
             * (self.day_cfg["cook_speed_mult"] if has_chef and it.get("id") in CHEF_ITEM_IDS else 1.0)
             for it in items)
 
-        emp = self._employees[0] if self._employees else {"id": 1}
-        order_id = queries.create_order(tbl.db_id, emp["id"])
+        # Замовлення записується на того, хто його готує: кухар (страви кухні) або бариста (напої, випічка)
+        position = "кухар" if self._is_chef_dish(items) else "бариста"
+        emp = next((e for e in self._employees if e.get("position") == position),
+                   self._employees[0] if self._employees else {"id": 1})
+        order_id = queries.create_order(tbl.db_id, emp["id"], gameday=self.day)
+        cust.order_id = order_id
         if order_id:
             for it in items:
                 queries.add_order_item(order_id, it.get("id", 1), 1, it.get("price", 50))
@@ -924,6 +928,8 @@ class CafeHallScene:
         for cust in self.customers:
             cust.update(dt)
             if cust.state == CustomerState.GONE and not cust.satisfied:
+                if getattr(cust, "order_id", None):
+                    queries.cancel_order(cust.order_id)   # у БД замовлення стає «скасовано»
                 self.orders_bad += 1
                 self.rating = max(1.0, self.rating - 0.2)
                 msg = locale.get("notify.customer_left")

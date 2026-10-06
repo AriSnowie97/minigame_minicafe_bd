@@ -59,6 +59,9 @@ CREATE TABLE IF NOT EXISTS orders (
                   CHECK (status IN ('відкрито', 'оплачено', 'скасовано'))
 );
 
+-- Ігровий день, у який зроблено замовлення (для статистики по днях)
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS gameday INT;
+
 CREATE TABLE IF NOT EXISTS orderitems (
     id           SERIAL PRIMARY KEY,
     orderid      INT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
