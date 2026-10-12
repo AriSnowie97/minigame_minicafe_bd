@@ -109,50 +109,62 @@ class HUD:
                 surface.blit(dim_star, (star_x + i * 25, 26))
 
         # --- Кнопки перемикання кімнат (Кухня / Зал / Тераса) ---
+        # Відображаються лише тоді, коли відкрита додаткова кімната (кухня або тераса).
+        # На початку (1 день, тільки зал) вкладок немає — тільки я і бариста!
         f_tab = assets.font_ui(14, bold=True)
         kitchen_active = (current_room == "kitchen")
         hall_active    = (current_room == "hall")
         terrace_active = (current_room == "terrace")
 
-        # 1. Вкладка Кухня
-        k_hover = self.tab_kitchen_rect.collidepoint(mouse_pos)
-        if has_kitchen:
-            k_col = C.TERRACOTTA if kitchen_active else (C.BTN_HOVER if k_hover else (115, 120, 105))
-            k_title = "Кухня"
-        else:
-            k_col = (90, 95, 80)
-            k_title = "Кухня (160)"
-        pygame.draw.rect(surface, k_col, self.tab_kitchen_rect, border_radius=9)
-        pygame.draw.rect(surface, (255, 245, 235) if kitchen_active else C.DARK_SAGE, self.tab_kitchen_rect, 2 if kitchen_active else 1, border_radius=9)
-        txt_k = assets.render_outlined(f_tab, k_title, C.WHITE if has_kitchen else (200, 195, 185), (45, 30, 20), 1)
-        surface.blit(txt_k, txt_k.get_rect(center=self.tab_kitchen_rect.center))
-        if kitchen_alert and not kitchen_active:
-            pygame.draw.circle(surface, (240, 70, 60), (self.tab_kitchen_rect.right - 6, self.tab_kitchen_rect.top + 6), 6)
+        if has_kitchen or has_terrace:
+            if has_kitchen and has_terrace:
+                self.tab_kitchen_rect = pygame.Rect(670, 13, 105, 34)
+                self.tab_hall_rect    = pygame.Rect(785, 13, 95, 34)
+                self.tab_terrace_rect = pygame.Rect(890, 13, 115, 34)
+            elif has_kitchen:
+                self.tab_kitchen_rect = pygame.Rect(730, 13, 105, 34)
+                self.tab_hall_rect    = pygame.Rect(845, 13, 95, 34)
+                self.tab_terrace_rect = pygame.Rect(-200, -200, 0, 0)
+            else:
+                self.tab_kitchen_rect = pygame.Rect(-200, -200, 0, 0)
+                self.tab_hall_rect    = pygame.Rect(740, 13, 95, 34)
+                self.tab_terrace_rect = pygame.Rect(845, 13, 110, 34)
 
-        # 2. Вкладка Зал
-        hall_hover = self.tab_hall_rect.collidepoint(mouse_pos)
-        hall_col = C.TERRACOTTA if hall_active else (C.BTN_HOVER if hall_hover else (115, 120, 105))
-        pygame.draw.rect(surface, hall_col, self.tab_hall_rect, border_radius=9)
-        pygame.draw.rect(surface, (255, 245, 235) if hall_active else C.DARK_SAGE, self.tab_hall_rect, 2 if hall_active else 1, border_radius=9)
-        txt_h = assets.render_outlined(f_tab, "Зал", C.WHITE, (45, 30, 20), 1)
-        surface.blit(txt_h, txt_h.get_rect(center=self.tab_hall_rect.center))
-        if hall_alert and not hall_active:
-            pygame.draw.circle(surface, (240, 70, 60), (self.tab_hall_rect.right - 6, self.tab_hall_rect.top + 6), 6)
+            # 1. Вкладка Кухня
+            if has_kitchen:
+                k_hover = self.tab_kitchen_rect.collidepoint(mouse_pos)
+                k_col = C.TERRACOTTA if kitchen_active else (C.BTN_HOVER if k_hover else (115, 120, 105))
+                pygame.draw.rect(surface, k_col, self.tab_kitchen_rect, border_radius=9)
+                pygame.draw.rect(surface, (255, 245, 235) if kitchen_active else C.DARK_SAGE, self.tab_kitchen_rect, 2 if kitchen_active else 1, border_radius=9)
+                txt_k = assets.render_outlined(f_tab, "Кухня", C.WHITE, (45, 30, 20), 1)
+                surface.blit(txt_k, txt_k.get_rect(center=self.tab_kitchen_rect.center))
+                if kitchen_alert and not kitchen_active:
+                    pygame.draw.circle(surface, (240, 70, 60), (self.tab_kitchen_rect.right - 6, self.tab_kitchen_rect.top + 6), 6)
 
-        # 3. Вкладка Тераса
-        terrace_hover = self.tab_terrace_rect.collidepoint(mouse_pos)
-        if not has_terrace:
-            t_col = (90, 95, 80)
-            t_title = "Тераса (150)"
+            # 2. Вкладка Зал
+            hall_hover = self.tab_hall_rect.collidepoint(mouse_pos)
+            hall_col = C.TERRACOTTA if hall_active else (C.BTN_HOVER if hall_hover else (115, 120, 105))
+            pygame.draw.rect(surface, hall_col, self.tab_hall_rect, border_radius=9)
+            pygame.draw.rect(surface, (255, 245, 235) if hall_active else C.DARK_SAGE, self.tab_hall_rect, 2 if hall_active else 1, border_radius=9)
+            txt_h = assets.render_outlined(f_tab, "Зал", C.WHITE, (45, 30, 20), 1)
+            surface.blit(txt_h, txt_h.get_rect(center=self.tab_hall_rect.center))
+            if hall_alert and not hall_active:
+                pygame.draw.circle(surface, (240, 70, 60), (self.tab_hall_rect.right - 6, self.tab_hall_rect.top + 6), 6)
+
+            # 3. Вкладка Тераса
+            if has_terrace:
+                terrace_hover = self.tab_terrace_rect.collidepoint(mouse_pos)
+                t_col = C.TERRACOTTA if terrace_active else (C.BTN_HOVER if terrace_hover else (115, 120, 105))
+                pygame.draw.rect(surface, t_col, self.tab_terrace_rect, border_radius=9)
+                pygame.draw.rect(surface, (255, 245, 235) if terrace_active else C.DARK_SAGE, self.tab_terrace_rect, 2 if terrace_active else 1, border_radius=9)
+                txt_t = assets.render_outlined(f_tab, "Тераса", C.WHITE, (45, 30, 20), 1)
+                surface.blit(txt_t, txt_t.get_rect(center=self.tab_terrace_rect.center))
+                if terrace_alert and not terrace_active:
+                    pygame.draw.circle(surface, (240, 70, 60), (self.tab_terrace_rect.right - 6, self.tab_terrace_rect.top + 6), 6)
         else:
-            t_col = C.TERRACOTTA if terrace_active else (C.BTN_HOVER if terrace_hover else (115, 120, 105))
-            t_title = "Тераса"
-        pygame.draw.rect(surface, t_col, self.tab_terrace_rect, border_radius=9)
-        pygame.draw.rect(surface, (255, 245, 235) if terrace_active else C.DARK_SAGE, self.tab_terrace_rect, 2 if terrace_active else 1, border_radius=9)
-        txt_t = assets.render_outlined(f_tab, t_title, (240, 240, 240) if has_terrace else (200, 195, 185), (45, 30, 20), 1)
-        surface.blit(txt_t, txt_t.get_rect(center=self.tab_terrace_rect.center))
-        if terrace_alert and not terrace_active:
-            pygame.draw.circle(surface, (240, 70, 60), (self.tab_terrace_rect.right - 6, self.tab_terrace_rect.top + 6), 6)
+            self.tab_kitchen_rect = pygame.Rect(-200, -200, 0, 0)
+            self.tab_hall_rect    = pygame.Rect(-200, -200, 0, 0)
+            self.tab_terrace_rect = pygame.Rect(-200, -200, 0, 0)
 
         # --- Кнопка Магазину ---
         shop_hover = self.shop_rect.collidepoint(mouse_pos)

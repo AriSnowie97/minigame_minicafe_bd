@@ -62,7 +62,7 @@ class MainMenuScene:
     # ------------------------------------------------------------------
     def handle_event(self, event: pygame.event.Event):
         if self.btn_play.handle_event(event):
-            self.manager.switch("cafe_hall")
+            self.manager.switch("cafe_hall", day=1, money=0, rating=3.0, upgrades={})
 
         if self.btn_stats.handle_event(event):
             self.manager.switch("stats", back="main_menu")

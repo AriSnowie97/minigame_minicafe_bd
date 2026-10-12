@@ -325,9 +325,22 @@ class CafeHallScene:
 
     # ------------------------------------------------------------------
     def on_enter(self, day: int = 1, money: int = 0, rating: float = 3.0, upgrades: dict = None):
-        self.day         = day
-        self.money       = money
-        self.rating      = rating
+        self.day = day
+
+        # Повне скидання при старті 1 дня: кухня закрита, тераса закрита, офіціантів немає —
+        # як і на початку гри, тільки гравець і бариста!
+        if self.day == 1:
+            self.money = 0
+            self.rating = 3.0
+            self.upgrades = {}
+        else:
+            self.money = money
+            self.rating = rating
+            if upgrades is not None:
+                self.upgrades = upgrades
+            elif not hasattr(self, 'upgrades') or self.upgrades is None:
+                self.upgrades = {}
+
         self.orders_done = 0
         self.orders_bad  = 0
         self.time_left   = float(DAY_DURATION)
@@ -336,15 +349,12 @@ class CafeHallScene:
         self.notifications = []
         self.star_particles = []
         self.ready_pop_anim = 0.0
+        self.ready_item = None
+        self.ready_target_table = None
         self._prev_table_states = {}
 
         self.player_carrying_table = None
         self.pending_barista_orders = []
-
-        if upgrades is not None:
-            self.upgrades = upgrades
-        elif not hasattr(self, 'upgrades') or self.upgrades is None:
-            self.upgrades = {}
 
         # Ефект від Монстери (+0.5 до рейтингу)
         if self.upgrades.get("monstera", False) and self.rating < 3.5:
@@ -436,20 +446,32 @@ class CafeHallScene:
             if event.key == pygame.K_ESCAPE:
                 self.manager.switch("main_menu")
             elif event.key in (pygame.K_1, pygame.K_k):
-                self.switch_room("kitchen")
+                if self.upgrades.get("chef", False):
+                    self.switch_room("kitchen")
+                else:
+                    audio.play("ui_disabled")
+                    self.notifications.append(
+                        Notification("Кухня ще не відкрита! Найміть шеф-кухаря в Магазині :3", C.NOTIF_INFO, 2.0)
+                    )
             elif event.key in (pygame.K_2, pygame.K_h):
                 self.switch_room("hall")
             elif event.key in (pygame.K_3, pygame.K_t):
-                self.switch_room("terrace")
+                if self.day_cfg.get("has_terrace", False):
+                    self.switch_room("terrace")
+                else:
+                    audio.play("ui_disabled")
+                    self.notifications.append(
+                        Notification("Літня тераса ще не відкрита! Розблокуйте її в Магазині :3", C.NOTIF_INFO, 2.0)
+                    )
             elif event.key == pygame.K_LEFT:
                 if self.target_room == "terrace":
                     self.switch_room("hall")
-                elif self.target_room == "hall":
+                elif self.target_room == "hall" and self.upgrades.get("chef", False):
                     self.switch_room("kitchen")
             elif event.key == pygame.K_RIGHT:
                 if self.target_room == "kitchen":
                     self.switch_room("hall")
-                elif self.target_room == "hall":
+                elif self.target_room == "hall" and self.day_cfg.get("has_terrace", False):
                     self.switch_room("terrace")
 
         if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
@@ -461,28 +483,40 @@ class CafeHallScene:
                 return
 
             # 3. Вкладки перемикання кімнат в HUD (Кухня / Зал / Тераса)
-            if hasattr(self.hud, 'tab_kitchen_rect') and self.hud.tab_kitchen_rect.collidepoint(mx, my):
+            if self.upgrades.get("chef", False) and hasattr(self.hud, 'tab_kitchen_rect') and self.hud.tab_kitchen_rect.collidepoint(mx, my):
                 self.switch_room("kitchen")
                 return
 
-            if hasattr(self.hud, 'tab_hall_rect') and self.hud.tab_hall_rect.collidepoint(mx, my):
+            if (self.upgrades.get("chef", False) or self.day_cfg.get("has_terrace", False)) and hasattr(self.hud, 'tab_hall_rect') and self.hud.tab_hall_rect.collidepoint(mx, my):
                 self.switch_room("hall")
                 return
 
-            if hasattr(self.hud, 'tab_terrace_rect') and self.hud.tab_terrace_rect.collidepoint(mx, my):
+            if self.day_cfg.get("has_terrace", False) and hasattr(self.hud, 'tab_terrace_rect') and self.hud.tab_terrace_rect.collidepoint(mx, my):
                 self.switch_room("terrace")
                 return
 
             # 4. Переходи між кімнатами та взаємодія залів
             if self.target_room == "hall":
                 # Перехід на кухню (ліворуч)
-                if self.hall_to_kitchen_rect.collidepoint(mx, my) or self.arch_hall_to_kitchen.collidepoint(mx, my):
-                    self.switch_room("kitchen")
+                if (self.upgrades.get("chef", False) and self.hall_to_kitchen_rect.collidepoint(mx, my)) or self.arch_hall_to_kitchen.collidepoint(mx, my):
+                    if self.upgrades.get("chef", False):
+                        self.switch_room("kitchen")
+                    else:
+                        audio.play("ui_disabled")
+                        self.notifications.append(
+                            Notification("Кухня ще не відкрита! Найміть шеф-кухаря Мурчика в Магазині (160 монет) :3", C.NOTIF_INFO, 2.4)
+                        )
                     return
 
                 # Перехід на терасу (праворуч)
-                if self.hall_to_terrace_rect.collidepoint(mx, my) or self.arch_hall_to_terrace.collidepoint(mx, my):
-                    self.switch_room("terrace")
+                if (self.day_cfg.get("has_terrace", False) and self.hall_to_terrace_rect.collidepoint(mx, my)) or self.arch_hall_to_terrace.collidepoint(mx, my):
+                    if self.day_cfg.get("has_terrace", False):
+                        self.switch_room("terrace")
+                    else:
+                        audio.play("ui_disabled")
+                        self.notifications.append(
+                            Notification("Літня тераса ще не відкрита! Відкрийте її в Магазині (150 монет) :3", C.NOTIF_INFO, 2.4)
+                        )
                     return
 
                 # Клік по барній стійці / видачі страв
@@ -1277,8 +1311,15 @@ class CafeHallScene:
 
         # 5. Підказка керування ESC
         f = assets.font_ui(12, bold=True)
-        esc_t = assets.render_outlined(f, "ESC — меню | [1] Кухня  [2] Зал  [3] Тераса", C.SAGE_GRAY, (40, 35, 30), 1)
-        surface.blit(esc_t, (WIDTH - 305, HEIGHT - 20))
+        hints = ["ESC — меню"]
+        if self.upgrades.get("chef", False):
+            hints.append("[1] Кухня")
+        if self.upgrades.get("chef", False) or has_terrace:
+            hints.append("[2] Зал")
+        if has_terrace:
+            hints.append("[3] Тераса")
+        esc_t = assets.render_outlined(f, " | ".join(hints), C.SAGE_GRAY, (40, 35, 30), 1)
+        surface.blit(esc_t, (WIDTH - esc_t.get_width() - 20, HEIGHT - 20))
 
         # 6. Модальне вікно магазину (якщо відкрите)
         if self.shop_modal.is_open:
@@ -1286,51 +1327,39 @@ class CafeHallScene:
 
     # ------------------------------------------------------------------
     def _draw_hall_passages(self, surface: pygame.Surface, offset_x: int = 0):
-        """Акуратні дерев'яні вивіски переходів: ліворуч — до кухні, праворуч — на терасу"""
+        """Акуратні дерев'яні вивіски переходів: ліворуч — до кухні, праворуч — на терасу (тільки якщо вони відкриті)"""
+        has_kitchen = self.upgrades.get("chef", False)
         has_terrace = self.day_cfg.get("has_terrace", False)
         mouse_pos = pygame.mouse.get_pos()
         f = assets.font_ui(13, bold=True)
 
-        # 1. Перехід до кухні (ліворуч)
-        hover_k = (self.current_room == "hall" and self.hall_to_kitchen_rect.collidepoint(mouse_pos))
-        bw, bh = 180, 46
-        bx_k = 15 + offset_x
-        by = 390
-
-        board_k = pygame.Surface((bw, bh), pygame.SRCALPHA)
-        bg_col_k = (*C.TERRACOTTA, 235 if hover_k else 195)
-        pygame.draw.rect(board_k, bg_col_k, (0, 0, bw, bh), border_radius=12)
-        pygame.draw.rect(board_k, C.WHITE, (0, 0, bw, bh), 2 if hover_k else 1, border_radius=12)
-        if self.upgrades.get("chef", False):
+        # 1. Перехід до кухні (ліворуч) — відображається лише коли кухня куплена
+        if has_kitchen:
+            hover_k = (self.current_room == "hall" and self.hall_to_kitchen_rect.collidepoint(mouse_pos))
+            bw, bh = 180, 46
+            bx_k = 15 + offset_x
+            by = 390
+            board_k = pygame.Surface((bw, bh), pygame.SRCALPHA)
+            bg_col_k = (*C.TERRACOTTA, 235 if hover_k else 195)
+            pygame.draw.rect(board_k, bg_col_k, (0, 0, bw, bh), border_radius=12)
+            pygame.draw.rect(board_k, C.WHITE, (0, 0, bw, bh), 2 if hover_k else 1, border_radius=12)
             txt_k = assets.render_outlined(f, "<< До кухні", C.WHITE, (40, 35, 30), 1)
-        else:
-            board_k.fill((0, 0, 0, 0))
-            pygame.draw.rect(board_k, (110, 115, 100, 235 if hover_k else 195), (0, 0, bw, bh), border_radius=12)
-            pygame.draw.rect(board_k, C.DARK_SAGE, (0, 0, bw, bh), 1, border_radius=12)
-            txt_k = assets.render_outlined(assets.font_ui(12, bold=True), "Кухня: кухар 160 [!]", (245, 240, 230), (40, 35, 30), 1)
-        board_k.blit(txt_k, txt_k.get_rect(center=(bw // 2, bh // 2)))
-        surface.blit(board_k, (bx_k, by))
+            board_k.blit(txt_k, txt_k.get_rect(center=(bw // 2, bh // 2)))
+            surface.blit(board_k, (bx_k, by))
 
-        # 2. Перехід на літню терасу (праворуч)
-        hover_t = (self.current_room == "hall" and self.hall_to_terrace_rect.collidepoint(mouse_pos))
-        bx_t = WIDTH - 195 + offset_x
-
-        board_t = pygame.Surface((bw, bh), pygame.SRCALPHA)
+        # 2. Перехід на літню терасу (праворуч) — відображається лише коли тераса куплена
         if has_terrace:
+            hover_t = (self.current_room == "hall" and self.hall_to_terrace_rect.collidepoint(mouse_pos))
+            bw, bh = 180, 46
+            bx_t = WIDTH - 195 + offset_x
+            by = 390
+            board_t = pygame.Surface((bw, bh), pygame.SRCALPHA)
             bg_col_t = (*C.TERRACOTTA, 235 if hover_t else 195)
             pygame.draw.rect(board_t, bg_col_t, (0, 0, bw, bh), border_radius=12)
             pygame.draw.rect(board_t, C.WHITE, (0, 0, bw, bh), 2 if hover_t else 1, border_radius=12)
             txt_t = assets.render_outlined(f, "На літню терасу >>", C.WHITE, (40, 35, 30), 1)
             board_t.blit(txt_t, txt_t.get_rect(center=(bw // 2, bh // 2)))
-        else:
-            bg_col_t = (110, 115, 100, 235 if hover_t else 195)
-            pygame.draw.rect(board_t, bg_col_t, (0, 0, bw, bh), border_radius=12)
-            pygame.draw.rect(board_t, C.DARK_SAGE, (0, 0, bw, bh), 1, border_radius=12)
-            f_sm = assets.font_ui(12, bold=True)
-            txt_t = assets.render_outlined(f_sm, "Тераса: 150 монет [!]", (245, 240, 230), (40, 35, 30), 1)
-            board_t.blit(txt_t, txt_t.get_rect(center=(bw // 2, bh // 2)))
-
-        surface.blit(board_t, (bx_t, by))
+            surface.blit(board_t, (bx_t, by))
 
     def _draw_terrace_room(self, surface: pygame.Surface, offset_x: int = 0):
         """Отрисовка декору тераси точно за макетом користувача з підтримкою панорамування"""
