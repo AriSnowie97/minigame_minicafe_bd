@@ -1,6 +1,14 @@
 # MiniCafe 🐱☕
 
-Затишна ізометрична 2D-гра про котяче кафе на **Python** та **pygame-ce**, з базою даних замовлень (PostgreSQL / SQLite через SQLAlchemy ORM), живою музикою, звуковими ефектами та аналітикою.
+[![Завантажити MiniCafe.exe](https://img.shields.io/badge/Завантажити_гру-MiniCafe.exe_(v1.0.0)-2ea44f?style=for-the-badge&logo=windows)](https://github.com/AriSnowie97/minigame_minicafe_bd/releases/download/v1.0.0/MiniCafe.exe)
+[![Офіційний сайт](https://img.shields.io/badge/Сайт_гри-MiniCafe_Online-orange?style=for-the-badge)](https://arisnowie97.github.io/minigame_minicafe_bd/)
+[![Релізи](https://img.shields.io/badge/GitHub-Releases-blue?style=for-the-badge)](https://github.com/AriSnowie97/minigame_minicafe_bd/releases)
+
+### ⬇️ [Пряме завантаження MiniCafe.exe (Windows, ~243 МБ)](https://github.com/AriSnowie97/minigame_minicafe_bd/releases/download/v1.0.0/MiniCafe.exe)
+
+> 💡 **Файл автономний:** гра запускається в один клік без встановлення Python та налаштування оточення.
+> 
+> ⚠️ **УВАГА:** Зелена кнопка GitHub **«Code ➔ Download ZIP»** або архів **«Source code (zip)»** завантажує виключно вихідний код проекту! Щоб просто грати в гру, zip-архів **не потрібен** — завантажуйте файл **`MiniCafe.exe`** за посиланням вище.
 
 ![MiniCafe Screenshot](docs/img/hall.jpg)
 
@@ -46,11 +54,11 @@
 
 ---
 
-## 📦 Збірка у виконуваний файл (.exe)
+## 📦 Завантаження та збірка у виконуваний файл (.exe)
 
-У корені проекту є скрипт автоматичної збірки через PyInstaller:
-```powershell
-powershell -ExecutionPolicy Bypass -File build_exe.ps1
-```
-Готовий автономний файл з усіма ресурсами та звуками збережеться у `dist/MiniCafe.exe`.
-Також готовий файл можна завантажити у розділі **[Releases](https://github.com/AriSnowie97/minigame_minicafe_bd/releases)** на GitHub.
+* **Готова гра для Windows:** [⬇️ Завантажити MiniCafe.exe (v1.0.0, 243 МБ)](https://github.com/AriSnowie97/minigame_minicafe_bd/releases/download/v1.0.0/MiniCafe.exe) напряму або у розділі **[Releases](https://github.com/AriSnowie97/minigame_minicafe_bd/releases)** на GitHub.
+* **Самостійна збірка:** У корені проекту є скрипт автоматичної збірки через PyInstaller:
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File build_exe.ps1
+  ```
+  Готовий автономний файл з усіма ресурсами та звуками збережеться у `dist/MiniCafe.exe`.
