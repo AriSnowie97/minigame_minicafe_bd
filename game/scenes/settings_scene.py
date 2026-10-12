@@ -5,14 +5,15 @@ import pygame
 from game.core.settings   import C, WIDTH, HEIGHT
 from game.core.assets     import assets
 from game.core.localization import locale
+from game.core.audio      import audio
 from game.ui.button       import Button
 
 
 class SettingsScene:
     def __init__(self, manager):
         self.manager    = manager
-        self.sound_on   = True
-        self.music_on   = True
+        self.sound_on   = audio.sfx_on
+        self.music_on   = audio.music_on
         self._build_ui()
 
     def _build_ui(self):
@@ -41,6 +42,8 @@ class SettingsScene:
         return f"{locale.get('settings.music')}: {state}"
 
     def on_enter(self, **kwargs):
+        self.sound_on = audio.sfx_on
+        self.music_on = audio.music_on
         self._build_ui()
 
     def handle_event(self, event: pygame.event.Event):
@@ -54,10 +57,13 @@ class SettingsScene:
 
         if self.btn_sound.handle_event(event):
             self.sound_on = not self.sound_on
+            audio.set_sfx_enabled(self.sound_on)
             self.btn_sound.set_text(self._sound_label())
+            audio.play("ui_click")   # короткое подтверждение при включении
 
         if self.btn_music.handle_event(event):
             self.music_on = not self.music_on
+            audio.set_music_enabled(self.music_on)
             self.btn_music.set_text(self._music_label())
 
     def update(self, dt: float):

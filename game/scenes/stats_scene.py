@@ -6,6 +6,7 @@ import pygame
 
 from game.core.assets import assets
 from game.core.localization import locale
+from game.core.audio import audio
 from game.core.settings import C, HEIGHT, WIDTH
 from game.ui.button import Button
 from database import orm, stats
@@ -200,6 +201,7 @@ class StatsScene:
         if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             for i, r in enumerate(self.tab_rects):
                 if r.collidepoint(event.pos) and i != self.tab:
+                    audio.play("ui_click")
                     self.tab = i
                     self._reload()
                     return

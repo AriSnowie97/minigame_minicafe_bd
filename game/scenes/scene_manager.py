@@ -3,6 +3,7 @@
 """
 import pygame
 from typing import Dict
+from game.core.audio import audio
 
 
 class SceneManager:
@@ -23,6 +24,7 @@ class SceneManager:
             if hasattr(self._scenes[self._current], "on_exit"):
                 self._scenes[self._current].on_exit()
         self._current = name
+        audio.on_scene(name)
         scene = self._scenes[name]
         if hasattr(scene, "on_enter"):
             scene.on_enter(**kwargs)

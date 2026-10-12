@@ -6,6 +6,7 @@ import math
 from game.core.settings   import C, WIDTH, HEIGHT
 from game.core.assets     import assets
 from game.core.localization import locale
+from game.core.audio      import audio
 from game.ui.button       import Button
 from game.ui.hud          import draw_star
 from game.ui.shop         import ShopModal
@@ -53,6 +54,13 @@ class GameOverScene:
         self.btn_stats.set_text(locale.get("menu.stats"))
         self.btn_next.set_text(locale.get("game_over.restart" if failed else "game_over.next_day"))
         self.btn_menu.set_text(locale.get("game_over.main_menu"))
+
+        # Звук итогов: победный короткий джингл или грустный сигнал
+        if failed:
+            audio.play("order_fail", delay=0.2)
+        else:
+            audio.play("order_complete", delay=0.2)
+            audio.play("star", mult=0.8, delay=0.8)
 
     # ------------------------------------------------------------------
     def handle_event(self, event: pygame.event.Event):

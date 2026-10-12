@@ -4,6 +4,7 @@
 import pygame
 from game.core.settings import C
 from game.core.assets import assets
+from game.core.audio import audio
 
 
 class Button:
@@ -44,13 +45,18 @@ class Button:
     def handle_event(self, event: pygame.event.Event) -> bool:
         """Возвращает True если кнопка была нажата (click)."""
         if event.type == pygame.MOUSEMOTION:
+            was_hovered = self._hovered
             self._hovered = self.rect.collidepoint(event.pos)
+            if self._hovered and not was_hovered:
+                audio.play("ui_hover")
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.rect.collidepoint(event.pos):
                 self._pressed = True
+                audio.play("ui_pressed")
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             if self._pressed and self.rect.collidepoint(event.pos):
                 self._pressed = False
+                audio.play("ui_click")
                 return True
             self._pressed = False
         return False

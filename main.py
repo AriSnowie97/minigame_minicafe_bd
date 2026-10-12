@@ -13,6 +13,7 @@ if ROOT not in sys.path:
 from game.core.settings   import WIDTH, HEIGHT, FPS, TITLE
 from game.core.assets     import assets
 from game.core.localization import locale
+from game.core.audio      import audio
 from game.scenes.scene_manager import SceneManager
 from game.scenes.main_menu     import MainMenuScene
 from game.scenes.cafe_hall     import CafeHallScene
@@ -25,6 +26,10 @@ from database.connection       import get_connection
 def main():
     pygame.init()
     pygame.display.set_caption(TITLE)
+
+    # Звук: микшер + подготовка всех эффектов (без звуковой карты игра работает тихо)
+    audio.init()
+    audio.preload()
 
     # Иконка окна (если есть)
     for icon_name in ("logo.png", "logo_minicafe.png"):
@@ -64,6 +69,7 @@ def main():
             manager.handle_event(event)
 
         manager.update(dt)
+        audio.update(dt)
         manager.draw(screen)
         pygame.display.flip()
 

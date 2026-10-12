@@ -8,6 +8,7 @@ import pygame
 from typing import Dict, Any, Optional, Tuple
 from game.core.settings import C, WIDTH, HEIGHT
 from game.core.assets   import assets
+from game.core.audio    import audio
 
 
 SHOP_CATEGORIES = [
@@ -162,6 +163,8 @@ class ShopModal:
         self._btn_rects: Dict[str, pygame.Rect] = {}
 
     def open(self):
+        if not self.is_open:
+            audio.play("ui_open")
         self.is_open = True
         self.scroll_y = 0
 
@@ -173,6 +176,7 @@ class ShopModal:
             return False, money, None
 
         if event.type == pygame.KEYDOWN and event.key in (pygame.K_ESCAPE, pygame.K_SPACE):
+            audio.play("ui_click")
             self.close()
             return True, money, None
 
@@ -187,18 +191,22 @@ class ShopModal:
 
             # Клік по кнопці закриття [X]
             if self.close_rect.collidepoint(mx, my):
+                audio.play("ui_click")
                 self.close()
                 return True, money, None
 
             # Клік за межами модального вікна закриває його
             modal_rect = pygame.Rect(self.x, self.y, self.width, self.height)
             if not modal_rect.collidepoint(mx, my):
+                audio.play("ui_click")
                 self.close()
                 return True, money, None
 
             # Клік по вкладках
             for tab_idx, tr in enumerate(self.tab_rects):
                 if tr.collidepoint(mx, my):
+                    if tab_idx != self.current_tab:
+                        audio.play("ui_click")
                     self.current_tab = tab_idx
                     self.scroll_y = 0
                     return True, money, None
@@ -211,11 +219,16 @@ class ShopModal:
                 if btn_r and btn_r.collidepoint(mx, my):
                     req = item.get("requires")
                     if req and not upgrades.get(req, False):
+                        audio.play("ui_disabled")
                         return True, money, None
                     if not upgrades.get(item_id, False) and money >= item["price"]:
                         new_money = money - item["price"]
                         upgrades[item_id] = True
+                        audio.play("cash_register")
+                        audio.play("star", mult=0.8, delay=0.25)
                         return True, new_money, item_id
+                    if not upgrades.get(item_id, False):
+                        audio.play("ui_disabled")   # не хватает монет
             return True, money, None
 
         if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):

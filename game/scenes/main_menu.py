@@ -7,6 +7,7 @@ import random
 from game.core.settings   import C, WIDTH, HEIGHT
 from game.core.assets     import assets
 from game.core.localization import locale
+from game.core.audio      import audio
 from game.ui.button       import Button
 
 
@@ -76,6 +77,7 @@ class MainMenuScene:
         if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             for code, label, r in self.lang_buttons:
                 if r.collidepoint(event.pos):
+                    audio.play("ui_click")
                     locale.set_lang(code)
                     self._refresh_texts()
 

@@ -12,6 +12,7 @@ from game.core.settings import (C, WIDTH, HEIGHT, ISO_TILE_W, ISO_TILE_H,
                                  DAY_DURATION, COOKING_SPEED, CUSTOMER_PATIENCE,
                                  TABLE_GRID_POSITIONS, MENU_ITEM_KEYS, get_item_sprite)
 from game.core.assets       import assets
+from game.core.audio        import audio
 from game.core.localization import locale
 from game.entities.table    import CafeTable, TableState, iso_to_screen
 from game.entities.customer import Customer, CustomerState
@@ -26,9 +27,9 @@ from database               import queries
 # Горизонтальні координати кімнат у просторі безшовного панорамування камери
 HALL_TABLES = (1, 2, 3, 4, 9, 10)
 CHEF_ITEM_IDS = (5, 6, 7, 8, 9, 10, 11)   # страви кухаря (тортик теж, якщо кухар найнятий); напої — завжди бариста
-HALL_SERVE = (722.0, 548.0)            # виставний (сервірувальний) столик у залі: нижня середина спрайта
+HALL_SERVE = (748.0, 540.0)            # місце видачі напоїв на барній стійці в залі (окремого столика в залі немає — він лише на кухні)
 KITCHEN_SERVE = (610.0, 604.0)         # сервірувальний столик на кухні
-HALL_PICKUP = (672.0, 566.0)           # де офіціант стоїть біля сервірувального столика в залі
+HALL_PICKUP = (722.0, 560.0)           # де офіціант стоїть біля барної стійки в залі
 KITCHEN_PICKUP = (664.0, 608.0)        # де офіціант стоїть біля сервірувального столика на кухні
 TERRACE_HOME = (700.0, 598.0)          # місце другого офіціанта на терасі
 VIP_CHANCE = 0.06                      # шанс появи VIP-гостя при кожному новому госте (пасхалка)
@@ -138,6 +139,10 @@ class CafeHallScene:
         self.ready_pop_anim = 0.0
         self._prev_table_states = {}
 
+        # Звук: предыдущие значения для отслеживания событий
+        self._prev_stars = 3
+        self._waiter_prev = {}
+
         # Спавн клієнтів
         self._spawn_timer = 0.0
         self._spawn_interval = 10.0
@@ -210,6 +215,105 @@ class CafeHallScene:
             return
         self.target_room = room_name
         self.target_camera_x = ROOM_OFFSETS[room_name]
+
+    # ------------------------------------------------------------------
+    # Звуки
+    # ------------------------------------------------------------------
+    DRINK_IDS = (1, 2, 4, 12, 13, 15)
+
+    def _vis(self, room: str) -> float:
+        """Громкость события: полная, если комната на экране; тише — если происходит в соседней"""
+        return 1.0 if self.target_room == room else 0.45
+
+    @staticmethod
+    def _table_room(tbl) -> str:
+        return "terrace" if getattr(tbl, "table_number", 1) in (5, 6, 7, 8) else "hall"
+
+    def _play_cook_sound(self, items):
+        """Звук начала готовки: кофемашина / пар молока / сковорода / кастрюля / нож"""
+        ids = [it.get("id") for it in items]
+        if self._is_chef_dish(items):
+            vis = self._vis("kitchen")
+            if 11 in ids:
+                name = "pot_simmer"
+            elif 7 in ids or 8 in ids:
+                name = "pan_sizzle"
+            elif 9 in ids:
+                name = "chop"
+            elif 10 in ids:
+                name = "plate_place"
+            else:
+                return          # духовка (5, 6): звук будет «дзынь» при готовности
+        else:
+            vis = self._vis("hall")
+            if 12 in ids or 15 in ids:
+                name = "milk_steam"
+            elif any(i in (1, 4, 13) for i in ids):
+                name = "coffee_machine"
+            elif 2 in ids:
+                name = "cup_clink"
+            else:
+                name = "plate_place"
+        audio.play(name, vis)
+
+    def _play_ready_sound(self, tbl):
+        """Блюдо готово: «дзынь» на месте; если игрок в другой комнате — заметный сигнал"""
+        chef = self._is_chef_table(tbl)
+        room = "kitchen" if chef else "hall"
+        if self.target_room == room:
+            audio.play("oven_ding" if chef else "service_bell")
+        else:
+            audio.play("order_ready", 0.9)
+
+    def _play_serve_sound(self, tbl):
+        items = getattr(tbl, "order_items", None) or []
+        ids = [it.get("id") for it in items]
+        drinks = bool(ids) and all(i in self.DRINK_IDS for i in ids)
+        vis = self._vis(self._table_room(tbl))
+        audio.play("cup_clink" if drinks else "plate_place", vis)
+        audio.play("cat_happy", vis, delay=0.25)
+
+    def _sfx_customer(self, cust, old_state):
+        """Звуки по смене состояния гостя (опрашиваем, не трогая сущность Customer)"""
+        new = cust.state
+        vis = self._vis(self._table_room(cust.table))
+        if new != old_state:
+            if new == CustomerState.WAITING:
+                audio.play("cat_wait", vis)
+            elif new == CustomerState.PAYING:
+                if getattr(cust, "is_vip", False):
+                    audio.play("order_complete", vis)
+                    audio.play("coin_x2", vis, delay=0.3)
+                elif len(cust.menu_items) > 1:
+                    audio.play("coin_x2", vis)
+                else:
+                    audio.play("coin", vis)
+            elif new == CustomerState.GONE and not cust.satisfied:
+                audio.play("order_fail", vis)
+        # Нетерпение — один раз, когда терпение почти кончилось
+        if (new == CustomerState.WAITING and not getattr(cust, "_sfx_warned", False)
+                and cust.patience < cust.max_patience * 0.28):
+            cust._sfx_warned = True
+            audio.play("cat_impatient", vis)
+
+    def _sfx_waiter(self, w):
+        """Официант взял блюдо на поднос / перешёл в другую комнату"""
+        prev_room, prev_carry = self._waiter_prev.get(id(w), (w.room, False))
+        carrying = w.carrying_item is not None
+        if carrying and not prev_carry:
+            audio.play("plate_place", self._vis(w.room))
+        if w.room != prev_room:
+            audio.play("cat_steps", self._vis(w.room))
+        self._waiter_prev[id(w)] = (w.room, carrying)
+
+    def _update_ambience_mix(self):
+        """Атмосфера плавно перетекает вслед за камерой: кухня ← зал → тераса"""
+        k = max(-1.0, min(1.0, self.camera_x / 1280.0))
+        audio.set_ambience({
+            "kitchen": max(0.0, -k),
+            "hall":    1.0 - abs(k),
+            "terrace": max(0.0, k),
+        })
 
     def _init_barista_pos(self):
         """Розміщення барної стійки у правому нижньому куті кімнати точно всередині підлоги"""
@@ -285,6 +389,10 @@ class CafeHallScene:
         self.camera_x = 0.0
         self.target_camera_x = 0.0
         self._build_background()
+
+        # Звук: стартовые значения (рейтинг уже скорректирован Монстерой)
+        self._prev_stars = round(self.rating)
+        self._waiter_prev = {}
 
         # Повідомлення про початок дня
         day_title = self.day_cfg.get("day_title", f"День {self.day}")
@@ -397,6 +505,7 @@ class CafeHallScene:
                 # Клік по котику-кухарю
                 if self.cook.hitbox.collidepoint(mx, my):
                     self.cook.on_click()
+                    audio.play("cat_happy", 0.8)
                     return
 
                 # Клік по столу видачі страв на кухні
@@ -432,6 +541,7 @@ class CafeHallScene:
                 self.notifications.append(
                     Notification(f"У вас уже є страва! Віднесіть її до столика №{tbl_num}!", C.NOTIF_BAD, 2.0)
                 )
+                audio.play("ui_disabled")
                 return True
 
             target_tbl = ready_tables[0]
@@ -451,6 +561,7 @@ class CafeHallScene:
                 # Гравець САМ забирає страву на руки
                 target_tbl.is_picked_up = True
                 self.player_carrying_table = target_tbl
+                audio.play("plate_place")
                 self.notifications.append(
                     Notification(f"Взяли {food_names}! Клікніть по столику №{target_tbl.table_number}, щоб подати!", C.NOTIF_GOOD, 2.2)
                 )
@@ -482,7 +593,10 @@ class CafeHallScene:
             return True
 
         # Інакше — звичайний інтерактивний діалог з баристою
-        return self.barista.handle_click(mx, my)
+        if self.barista.handle_click(mx, my):
+            audio.play("cat_happy", 0.8)
+            return True
+        return False
 
     # ------------------------------------------------------------------
     def _waiter_is_busy_notice(self, w=None) -> bool:
@@ -491,6 +605,7 @@ class CafeHallScene:
         if not (w.is_busy() or w.carrying_item is not None):
             return False
         w.say("Я зайнятий іншим замовленням! :3", duration=1.8)
+        audio.play("ui_disabled")
         self.notifications.append(
             Notification("Офіціант зайнятий іншим замовленням! Зачекайте, поки він закінчить.", C.NOTIF_INFO, 1.8)
         )
@@ -515,6 +630,7 @@ class CafeHallScene:
                 self.notifications.append(
                     Notification(f"Це страва для столика №{correct_num}! Віднесіть туди :3", C.NOTIF_BAD, 2.0)
                 )
+                audio.play("ui_disabled")
             return
 
         # 2. Якщо офіціант несе страву на таці -> подаємо гостю!
@@ -531,6 +647,7 @@ class CafeHallScene:
                     Notification(f"Це замовлення для столика №{correct_num}! Віднесіть туди.", C.NOTIF_BAD, 2.0)
                 )
                 w.say(f"Це для столика №{correct_num}! :3", duration=1.8)
+                audio.play("ui_disabled")
             return
 
         # 3. Клієнт очікує замовлення (WAITING)
@@ -560,6 +677,7 @@ class CafeHallScene:
                         Notification(f"Замовлення столика №{tbl.table_number} прийнято ({food_names})! Клікніть на баристу!", C.NOTIF_INFO, 2.4)
                     )
                     self.barista.say("Клікніть на мене, я зварю! :3", duration=2.5)
+                    audio.play("order_new")
             return
 
         # Страва готова: якщо є офіціант — гравець посилає його до цього столика
@@ -644,6 +762,7 @@ class CafeHallScene:
         tbl.start_order(order_id, items[0], total_cook)
         cust.state = CustomerState.ORDER_TAKEN
         cust.patience = min(float(self.day_cfg["patience"]), cust.patience + 14.0)
+        self._play_cook_sound(items)
 
         food_names = " + ".join(locale.get(f"food.{MENU_ITEM_KEYS.get(it.get('id', 1), 'cappuccino')}") for it in items)
         if self._is_chef_dish(items):
@@ -676,6 +795,7 @@ class CafeHallScene:
         msg = locale.get("notify.order_done", coins=earned)
         self.notifications.append(Notification(msg, C.NOTIF_GOOD, 2.5))
         self.barista.on_order_served(earned)
+        self._play_serve_sound(tbl)
         if getattr(cust, "is_vip", False):
             self.rating = min(5.0, self.rating + 0.3)
             self.notifications.append(Notification("VIP-гість у захваті! Щедра винагорода :3", C.NOTIF_GOOD, 3.2))
@@ -690,6 +810,7 @@ class CafeHallScene:
         if cust is None or cust.state != CustomerState.WAITING:
             return
         tbl.waiter_order = True   # цей заказ прийняв офіціант — сам же віднесе готову страву
+        audio.play("order_new", self._vis(self._handin_point(tbl)[2]))
         chef_order = self._order_is_chef(tbl)
         if self._cook_busy(chef_order):
             # Готувальник зайнятий — замовлення чекає в черзі та стартує автоматично
@@ -715,6 +836,7 @@ class CafeHallScene:
 
     def _on_dish_ready(self, tbl: CafeTable):
         """Анімація завершення готування страви — Дінь! та іскри на стійці"""
+        self._play_ready_sound(tbl)
         if self._is_chef_table(tbl):
             self.cook.on_dish_ready()
         else:
@@ -765,6 +887,7 @@ class CafeHallScene:
         tbl.customer = cust
         tbl.waiter_order = False
         self.customers.append(cust)
+        audio.play("door_bell", self._vis(self._table_room(tbl)))
 
         if vip:
             self.notifications.append(Notification("VIP-гість завітав до кафе! Замовляє одразу 4 страви :3", (150, 110, 190), 3.4))
@@ -841,6 +964,7 @@ class CafeHallScene:
         else:
             self.barista.say("Я зайнята іншим замовленням! :3", duration=1.8)
             text = "Бариста зайнята іншим замовленням! Зачекайте, поки вона закінчить."
+        audio.play("ui_disabled")
         self.notifications.append(Notification(text, C.NOTIF_INFO, 1.8))
 
     def _is_chef_table(self, tbl) -> bool:
@@ -923,6 +1047,9 @@ class CafeHallScene:
 
         self.time_left = max(0.0, self.time_left - dt)
 
+        # Атмосфера комнат следует за камерой
+        self._update_ambience_mix()
+
         # Анімація появи страви
         if self.ready_pop_anim > 0:
             self.ready_pop_anim = max(0.0, self.ready_pop_anim - dt * 1.5)
@@ -959,6 +1086,7 @@ class CafeHallScene:
             self._auto_serve_waiter_orders()
             for w in active_waiters:
                 w.update(dt)
+                self._sfx_waiter(w)
             self._start_queued_orders()
 
         # Оновлюємо баристу
@@ -973,7 +1101,9 @@ class CafeHallScene:
 
         # Оновлюємо клієнтів
         for cust in self.customers:
+            old_state = cust.state
             cust.update(dt)
+            self._sfx_customer(cust, old_state)
             if cust.state == CustomerState.GONE and not cust.satisfied:
                 if getattr(cust, "order_id", None):
                     queries.cancel_order(cust.order_id)   # у БД замовлення стає «скасовано»
@@ -983,6 +1113,12 @@ class CafeHallScene:
                 self.notifications.append(Notification(msg, C.NOTIF_BAD, 2.0))
 
         self.customers = [c for c in self.customers if c.state != CustomerState.GONE]
+
+        # Рейтинг вырос на целую звезду — тихий «звёздный» звук
+        stars = round(self.rating)
+        if stars > self._prev_stars:
+            audio.play("star")
+        self._prev_stars = stars
 
         for n in self.notifications:
             n.update(dt)
@@ -1488,13 +1624,12 @@ class CafeHallScene:
         return rect
 
     def _draw_counter_pickup_station(self, surface: pygame.Surface, offset_x: int = 0):
-        """Сервірувальний столик у залі: готові страви баристи з ефектом 'Дінь!'"""
+        """Видача напоїв баристи в залі: готова страва з'являється на барній стійці з ефектом 'Дінь!' (столик видачі — лише на кухні)"""
         ready_tables = [t for t in self._tables if t.state == TableState.READY and not getattr(t, 'is_picked_up', False) and not self._is_chef_table(t)]
-        rect = self._draw_serving_counter(surface, HALL_SERVE[0] + offset_x, HALL_SERVE[1], bool(ready_tables))
         if not ready_tables:
             return
 
-        cx, cy = rect.left + int(rect.w * 0.62), rect.top + int(rect.h * 0.30)
+        cx, cy = int(HALL_SERVE[0]) + offset_x, int(HALL_SERVE[1]) - 26
 
         # Анімація пружного вибуху "Дінь!" при щойно приготованій страві
         if self.ready_pop_anim > 0:

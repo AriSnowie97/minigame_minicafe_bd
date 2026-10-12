@@ -4,3 +4,4 @@ __pycache__/
 assets/.cache/
 screenshot_*.png
 dist/
+build/
