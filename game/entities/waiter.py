@@ -517,11 +517,15 @@ class Waiter:
         if self.carrying_item:
             food_id = self.carrying_item.get("id", 1)
             item_spr_name = get_item_sprite(food_id)
-            dish_img = assets.image_by_height(item_spr_name, s_scale(80))
+            dish_img = assets.image_by_height(item_spr_name, s_scale(65))
 
             # Точный центр тарелочки в лапке официанта
-            rel_x = int(sw * 0.74)
-            rel_y = int(sh * 0.44)
+            if self.sprite_prefix == "cat_waiter2":
+                rel_x = int(sw * 0.28)
+                rel_y = int(sh * 0.62)
+            else:
+                rel_x = int(sw * 0.77)
+                rel_y = int(sh * 0.49)
 
             if self.facing_left:
                 dx = sw - rel_x

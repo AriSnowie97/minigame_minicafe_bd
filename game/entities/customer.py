@@ -239,16 +239,18 @@ class Customer:
         else:
             self._draw_cat(surface, ix, iy + bob)
 
-        # Еда на столике перед котиком во время поедания
+        # Еда на столике перед котиком во время поедания (точно по центру круглого столика)
         if self.state in (CustomerState.EATING, CustomerState.PAYING):
-            from game.core.settings import get_item_sprite
+            from game.core.settings import get_item_sprite, CHAIR_RIGHT_TABLES
+            is_right = getattr(self.table, "table_number", 0) in CHAIR_RIGHT_TABLES
+            dish_x = ix + (12 if is_right else -12)
             if len(self.menu_items) > 1:
                 from game.ui.dish_row import blit_dish_row
-                blit_dish_row(surface, self.menu_items[:4], ix, iy - 6 + bob, 22 if len(self.menu_items) <= 2 else 17, 2)
+                blit_dish_row(surface, self.menu_items[:4], dish_x, iy - 6 + bob, 22 if len(self.menu_items) <= 2 else 17, 2)
             else:
                 food_spr_name = get_item_sprite(self.menu_item.get("id", 1))
                 food_img = assets.image_by_height(food_spr_name, 28)
-                surface.blit(food_img, food_img.get_rect(center=(ix, iy - 6 + bob)))
+                surface.blit(food_img, food_img.get_rect(center=(dish_x, iy - 6 + bob)))
 
         # Пузырь заказа (показывается когда котик ждёт заказ)
         if self._bubble_alpha > 0 and self.state == CustomerState.WAITING:

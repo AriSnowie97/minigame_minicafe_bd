@@ -50,10 +50,11 @@ class CafeTable:
 
         # Экранные координаты столиков
         from game.core.settings import TABLE_COORDINATES, TABLE_GRID_POSITIONS, ISO_TILE_W, ISO_TILE_H, ISO_ORIGIN_X, ISO_ORIGIN_Y
-        if db_id in TABLE_COORDINATES:
-            sx, sy = TABLE_COORDINATES[db_id]
-        elif db_id in TABLE_GRID_POSITIONS:
-            gc, gr = TABLE_GRID_POSITIONS[db_id]
+        lookup_id = self.table_number if self.table_number in TABLE_COORDINATES else db_id
+        if lookup_id in TABLE_COORDINATES:
+            sx, sy = TABLE_COORDINATES[lookup_id]
+        elif lookup_id in TABLE_GRID_POSITIONS:
+            gc, gr = TABLE_GRID_POSITIONS[lookup_id]
             self.grid_col = gc
             self.grid_row = gr
             sx, sy = iso_to_screen(gc, gr, ISO_TILE_W, ISO_TILE_H, ISO_ORIGIN_X, ISO_ORIGIN_Y)
