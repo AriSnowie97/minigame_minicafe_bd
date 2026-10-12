@@ -20,6 +20,7 @@ if (Test-Path "embedded.env") {
 
 # Whole assets folder: sprites, fonts, locales, sounds (assets/sounds) and music (assets/music)
 py -m PyInstaller --noconfirm --clean --onefile --windowed --name MiniCafe `
+    --icon "assets/icon.ico" `
     --add-data "assets;assets" `
     --add-data "database/schema_postgres.sql;database" `
     --add-data "$embedded;." `

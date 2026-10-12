@@ -32,17 +32,24 @@ def main():
     audio.preload()
 
     # Иконка окна (если есть)
-    for icon_name in ("logo.png", "logo_minicafe.png"):
-        icon_path = os.path.join(ROOT, "assets", "sprites", icon_name)
+    for icon_path in (
+        os.path.join(ROOT, "assets", "icon.png"),
+        os.path.join(ROOT, "assets", "icon.ico"),
+        os.path.join(ROOT, "assets", "sprites", "ui_icon_paw.png"),
+        os.path.join(ROOT, "assets", "sprites", "logo_minicafe.png"),
+    ):
         if os.path.exists(icon_path):
-            icon_src = pygame.image.load(icon_path)
-            iw, ih = icon_src.get_size()
-            k = 64 / max(iw, ih)
-            icon_s = pygame.transform.smoothscale(icon_src, (max(1, int(iw * k)), max(1, int(ih * k))))
-            icon = pygame.Surface((64, 64), pygame.SRCALPHA)
-            icon.blit(icon_s, icon_s.get_rect(center=(32, 32)))
-            pygame.display.set_icon(icon)
-            break
+            try:
+                icon_src = pygame.image.load(icon_path)
+                iw, ih = icon_src.get_size()
+                k = 64 / max(iw, ih)
+                icon_s = pygame.transform.smoothscale(icon_src, (max(1, int(iw * k)), max(1, int(ih * k))))
+                icon = pygame.Surface((64, 64), pygame.SRCALPHA)
+                icon.blit(icon_s, icon_s.get_rect(center=(32, 32)))
+                pygame.display.set_icon(icon)
+                break
+            except Exception:
+                pass
 
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     clock  = pygame.time.Clock()
