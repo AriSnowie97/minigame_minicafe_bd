@@ -6,7 +6,18 @@ import random
 from datetime import datetime, timedelta
 
 from database.models import (CafeTable, Employee, MenuCategory, MenuItem, MenuItemIngredient,
-                             Order, OrderItem, Product)
+                             Order, OrderItem, Product, CafeExpense, Player)
+
+DEMO_PLAYERS = [
+    ("Аріна (Власниця)",    4850, 14, 128, 5.0),
+    ("Мурчик_Шеф",         3920, 12, 105, 4.9),
+    ("Барсик_Кавоман",     3150, 10,  89, 4.8),
+    ("Пушок_Експрес",      2480,  8,  72, 4.7),
+    ("Карамелька_Бариста", 1890,  6,  54, 4.6),
+    ("КотоШеф_UA",         1420,  5,  42, 4.5),
+    ("Лапка_Геймер",        980,  3,  29, 4.3),
+    ("Світлячок",           650,  2,  18, 4.1),
+]
 
 CATEGORIES = [(1, "Напої"), (2, "Випічка"), (3, "Основні страви"), (4, "Десерти"), (5, "Закуски"), (6, "Сніданки")]
 
@@ -71,7 +82,7 @@ CHEF_ITEM_IDS = (5, 6, 7, 8, 9, 10, 11)
 
 
 def seed_reference_data(session):
-    """Довідкові дані: категорії, продукти, меню, склад, столики, співробітники"""
+    """Довідкові дані: категорії, продукти, меню, склад, столики, співробітники, початкові гравці"""
     session.add_all([MenuCategory(id=i, name=n) for i, n in CATEGORIES])
     session.add_all([Product(id=i, name=n, unit=u, unitprice=p, shelflifedays=s) for i, n, u, p, s in PRODUCTS])
     session.add_all([MenuItem(id=i, name=n, categoryid=c, price=p, cookingtimemin=t, recipe=r)
@@ -80,13 +91,15 @@ def seed_reference_data(session):
     session.add_all([MenuItemIngredient(id=i, menuitemid=m, productid=p, quantity=q) for i, m, p, q in INGREDIENTS])
     session.add_all([CafeTable(id=i, tablenumber=n, capacity=c, location=l) for i, n, c, l in TABLES])
     session.add_all([Employee(id=i, fullname=f, position=p) for i, f, p in EMPLOYEES])
+    session.add_all([Player(name=name, total_money=m, days_played=d, orders_done=o, rating=r)
+                     for name, m, d, o, r in DEMO_PLAYERS])
     session.flush()
 
 
 def add_demo_orders(session, count: int = 60, days: int = 6, seed: int = 7) -> int:
     """
     Демонстраційна історія замовлень (для показу статистики): випадкові столики, страви та дні.
-    Страви кухаря готує кухар (id 3), решту — бариста (id 1).
+    Страви кухаря готує кухар (id 3), решту — бариста (id 1). Також генерує демо-витрати на закупівлю.
     """
     rng = random.Random(seed)
     items = session.query(MenuItem).all()
@@ -108,5 +121,14 @@ def add_demo_orders(session, count: int = 60, days: int = 6, seed: int = 7) -> i
         for d in dishes:
             session.add(OrderItem(orderid=order.id, menuitemid=d.id, quantity=1, priceatorder=d.price))
         created += 1
+
+    # Демо-затрати на закупівлю продуктів машинки для кожного дня
+    for d in range(1, days + 1):
+        for _ in range(rng.randint(1, 3)):
+            item = rng.choice(items)
+            cost = round(float(item.price) * 0.45 * 10, 2)
+            session.add(CafeExpense(gameday=d, menuitemid=item.id, quantity=10, cost=cost))
+
     session.flush()
     return created
+

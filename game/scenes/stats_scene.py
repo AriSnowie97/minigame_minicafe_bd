@@ -46,6 +46,13 @@ TEXT = {
     "cogs": {"uk": "Собівартість", "ru": "Себестоимость", "en": "Cost of goods"},
     "profit": {"uk": "Прибуток", "ru": "Прибыль", "en": "Profit"},
     "margin": {"uk": "Маржа", "ru": "Маржа", "en": "Margin"},
+    "tab_leaders": {"uk": "Кращі гравці", "ru": "Лучшие игроки", "en": "Top Players"},
+    "player": {"uk": "Гравець", "ru": "Игрок", "en": "Player"},
+    "days_count": {"uk": "Днів", "ru": "Дней", "en": "Days"},
+    "orders_count": {"uk": "Замовлень", "ru": "Заказов", "en": "Orders"},
+    "money": {"uk": "Монети", "ru": "Монеты", "en": "Coins"},
+    "rating": {"uk": "Рейтинг", "ru": "Рейтинг", "en": "Rating"},
+    "expenses": {"uk": "Витрати", "ru": "Затраты", "en": "Expenses"},
     # вкладки
     "tab_top": {"uk": "Топ страв", "ru": "Топ блюд", "en": "Top dishes"},
     "tab_days": {"uk": "По днях", "ru": "По дням", "en": "By day"},
@@ -99,14 +106,18 @@ def _breed(v):
 
 # (ключ вкладки, функція запиту, колонки [(ключ заголовка, ширина, вирівнювання, формат)], опис SQL-прийомів)
 TABS = [
+    ("tab_leaders", stats.top_players,
+     [("place_rank", 100, "l", _int), ("player", 290, "l", _txt), ("days_count", 130, "r", _int),
+      ("orders_count", 140, "r", _int), ("money", 170, "r", _money), ("rating", 140, "r", _dec)],
+     "RANK() OVER (ORDER BY total_money DESC) · Онлайн-таблиця лідерів MiniCafe"),
     ("tab_top", stats.top_dishes,
      [("dish", 300, "l", _txt), ("category", 220, "l", _txt), ("sold", 130, "r", _int),
       ("revenue", 150, "r", _money), ("rank", 200, "r", _int)],
      "JOIN 4 таблиць · GROUP BY · HAVING · RANK() OVER (PARTITION BY категорія)"),
     ("tab_days", stats.revenue_by_gameday,
-     [("day", 120, "l", _day), ("paid", 170, "r", _int), ("cancelled", 170, "r", _int),
-      ("revenue", 170, "r", _money), ("avg", 170, "r", _dec), ("running", 200, "r", _money)],
-     "Підзапит (сума кожного замовлення) · CASE-агрегати · SUM() OVER (ORDER BY день)"),
+     [("day", 110, "l", _day), ("paid", 130, "r", _int), ("revenue", 170, "r", _money),
+      ("expenses", 170, "r", _money), ("profit", 170, "r", _money), ("running", 190, "r", _money)],
+     "Підзапит замовлень · Затрати на продукти машинки · Чистий прибуток · SUM() OVER (день)"),
     ("tab_staff", stats.employee_stats,
      [("employee", 270, "l", _txt), ("position", 150, "l", _txt), ("prepared", 150, "r", _int),
       ("served", 130, "r", _int), ("cancelled", 130, "r", _int), ("revenue", 150, "r", _money)],
@@ -240,7 +251,7 @@ class StatsScene:
         surface.blit(src, (PANEL.right - src.get_width() - 34, PANEL.y + 30))
 
         # Вкладки
-        f_tab = assets.font_ui(15, bold=True)
+        f_tab = assets.font_ui(13, bold=True)
         mouse = pygame.mouse.get_pos()
         for i, r in enumerate(self.tab_rects):
             active = i == self.tab

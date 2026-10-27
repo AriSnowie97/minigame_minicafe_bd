@@ -82,6 +82,7 @@ def init():
                                        connect_args={"connect_timeout": 5})
                 with engine.connect() as conn:
                     conn.execute(text("SELECT 1"))
+                Base.metadata.create_all(engine)
                 _engine, _online = engine, True
                 print("[DB] Connected to Railway PostgreSQL ✓ (SQLAlchemy ORM)")
             except Exception as e:

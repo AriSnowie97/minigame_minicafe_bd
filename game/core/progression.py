@@ -90,11 +90,11 @@ def get_day_config(day: int, upgrades: Dict[str, Any] = None) -> Dict[str, Any]:
     has_waiter = upgrades.get("waiter", False)
     has_waiter2 = upgrades.get("waiter2", False)   # второй официант — работает только на террасе
 
-    # 7. Дозволені столики (столики 1..4 — зал, 5..8 — літня тераса)
+    # 7. Дозволені столики (столики 2, 3, 4, 9, 10 — зал; 5..8 — літня тераса)
     if has_terrace:
-        allowed_tables = [1, 2, 3, 4, 9, 10, 5, 6, 7, 8]
+        allowed_tables = [2, 3, 4, 9, 10, 5, 6, 7, 8]
     else:
-        allowed_tables = [1, 2, 3, 4, 9, 10]
+        allowed_tables = [2, 3, 4, 9, 10]
 
     # 8. Складність після 1 тижня: котики замовляють по 2 предмети (напій + десерт)
     can_order_two = (day >= 8)

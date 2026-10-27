@@ -10,7 +10,7 @@ from sqlalchemy import case, func, select
 
 from database import orm
 from database.models import (CafeTable, Employee, MenuCategory, MenuItem, MenuItemIngredient,
-                             Order, OrderItem, Product)
+                             Order, OrderItem, Product, CafeExpense, Player)
 from database.seed import EMPLOYEES, MENU_ITEMS, TABLES
 
 # Запасні дані на випадок збою ORM (гра не повинна падати)
@@ -166,3 +166,68 @@ def get_day_stats() -> dict:
     except Exception as e:
         print(f"[DB] get_day_stats: {e}")
         return {"completed": 0, "cancelled": 0, "earned": 0}
+
+
+def log_supply_expense(gameday: int, menu_item_id: int, quantity: int, cost: float) -> bool:
+    """Записати витрати на закупівлю партії продуктів машинки."""
+    try:
+        with orm.session() as s:
+            s.add(CafeExpense(gameday=gameday, menuitemid=menu_item_id, quantity=quantity, cost=float(cost)))
+        return True
+    except Exception as e:
+        print(f"[DB] log_supply_expense: {e}")
+        return False
+
+
+def get_total_expenses(gameday: Optional[int] = None) -> float:
+    """Сумарні витрати на продукти за день (або за всю гру)."""
+    try:
+        with orm.session() as s:
+            stmt = select(func.coalesce(func.sum(CafeExpense.cost), 0))
+            if gameday is not None:
+                stmt = stmt.where(CafeExpense.gameday == gameday)
+            return float(s.scalar(stmt) or 0)
+    except Exception as e:
+        print(f"[DB] get_total_expenses: {e}")
+        return 0.0
+
+
+def save_player_stats(name: str, money: int, days_played: int, orders_done: int, rating: float) -> bool:
+    """Зберегти або оновити статистику гравця для онлайн/локальної таблиці рекордів."""
+    if not name or not name.strip():
+        name = "Котик Гравець"
+    name = name.strip()
+    try:
+        with orm.session() as s:
+            player = s.scalar(select(Player).where(Player.name == name))
+            if player is None:
+                player = Player(name=name, total_money=int(money), days_played=int(days_played),
+                                orders_done=int(orders_done), rating=float(rating), updated_at=datetime.now())
+                s.add(player)
+            else:
+                player.total_money = max(player.total_money, int(money))
+                player.days_played = max(player.days_played, int(days_played))
+                player.orders_done = max(player.orders_done, int(orders_done))
+                player.rating = round(float(rating), 2)
+                player.updated_at = datetime.now()
+        return True
+    except Exception as e:
+        print(f"[DB] save_player_stats: {e}")
+        return False
+
+
+def get_top_players(limit: int = 10) -> list:
+    """Отримати найкращих гравців за заробленими монетами."""
+    try:
+        with orm.session() as s:
+            stmt = (select(Player)
+                    .order_by(Player.total_money.desc(), Player.orders_done.desc())
+                    .limit(limit))
+            rows = s.scalars(stmt).all()
+            return [{"id": p.id, "name": p.name, "total_money": p.total_money,
+                     "days_played": p.days_played, "orders_done": p.orders_done,
+                     "rating": float(p.rating)} for p in rows]
+    except Exception as e:
+        print(f"[DB] get_top_players: {e}")
+        return []
+

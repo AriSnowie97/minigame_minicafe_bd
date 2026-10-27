@@ -1,10 +1,10 @@
 # MiniCafe 🐱☕
 
-[![Завантажити MiniCafe.exe](https://img.shields.io/badge/Завантажити_гру-MiniCafe.exe_(v1.0.0)-2ea44f?style=for-the-badge&logo=windows)](https://github.com/AriSnowie97/minigame_minicafe_bd/releases/download/v1.0.0/MiniCafe.exe)
+[![Завантажити MiniCafe.exe](https://img.shields.io/badge/Завантажити_гру-MiniCafe.exe_(v1.1.0)-2ea44f?style=for-the-badge&logo=windows)](https://github.com/AriSnowie97/minigame_minicafe_bd/releases/download/v1.1.0/MiniCafe.exe)
 [![Офіційний сайт](https://img.shields.io/badge/Сайт_гри-MiniCafe_Online-orange?style=for-the-badge)](https://arisnowie97.github.io/minigame_minicafe_bd/)
 [![Релізи](https://img.shields.io/badge/GitHub-Releases-blue?style=for-the-badge)](https://github.com/AriSnowie97/minigame_minicafe_bd/releases)
 
-### ⬇️ [Пряме завантаження MiniCafe.exe (Windows, ~243 МБ)](https://github.com/AriSnowie97/minigame_minicafe_bd/releases/download/v1.0.0/MiniCafe.exe)
+### ⬇️ [Пряме завантаження MiniCafe.exe (Windows, ~250 МБ)](https://github.com/AriSnowie97/minigame_minicafe_bd/releases/download/v1.1.0/MiniCafe.exe)
 
 > 💡 **Файл автономний:** гра запускається в один клік без встановлення Python та налаштування оточення.
 > 
@@ -14,7 +14,29 @@
 
 ---
 
-## 🎮 Особливості версії 1.0 (Реліз)
+## 🎮 Що нового у версії 1.1
+
+* **🚚 Служба доставки та склад продуктів:**
+  * Реалізовано динамічний облік залишків кожної страви/напою (`stock`).
+  * Зручні бейджі запасів у меню магазину (`0 шт (Немає!)`, `Мало`, тощо).
+  * Замовлення поставок (+10 шт) прямо з меню або на екрані підсумків дня.
+  * Повноцінна анімація: приїзд фірмової вантажівки до вітрини залу, відкриття кузова, розвантаження та котик-кур'єр з коробкою продуктів, що прямує на кухню.
+  * Звуки клаксона та роботи двигуна вантажівки.
+* **🏆 Профіль гравця та Таблиця лідерів (Leaderboard):**
+  * Введення та зміна власного нікнейму безпосередньо у головному меню.
+  * Збереження рекордів (монети, відпрацьовані дні, замовлення, зірковий рейтинг) у базі даних (таблиця `players`).
+  * Екран статистики: глобальна вкладка «🏆 Топ гравців» з віконною функцією `RANK() OVER (ORDER BY total_money DESC)`.
+* **📦 Фінансовий облік витрат і чистий прибуток:**
+  * Нова таблиця `cafe_expenses` фіксує витрати на всі регулярні закупівлі продуктів.
+  * Оновлена аналітика у вкладці «По днях»: підрахунок виручки, витрат на поставки та чистого прибутку кафе з накопичувальним підсумком `SUM(profit) OVER (ORDER BY day)`.
+* **🪑 Поліпшення зручності та візуалу:**
+  * Оновлено розміщення стільців (`CHAIR_RIGHT_TABLES`) — котики сидять обличчям усередину залу, не торкаючись стін.
+  * Точне вирівнювання готових страв на поверхні стійки роздачі.
+  * Зручні сповіщення для гравця про закінчення запасів тих чи інших страв.
+
+---
+
+## 🎮 Особливості гри (Реліз v1.0)
 
 * **🎵 Повний звуковий супровід та музика:**
   * Фонова музика окремо для головного меню, робочого дня в кафе та екрана підсумків з плавним загасанням та переходами.
@@ -56,7 +78,7 @@
 
 ## 📦 Завантаження та збірка у виконуваний файл (.exe)
 
-* **Готова гра для Windows:** [⬇️ Завантажити MiniCafe.exe (v1.0.0, 243 МБ)](https://github.com/AriSnowie97/minigame_minicafe_bd/releases/download/v1.0.0/MiniCafe.exe) напряму або у розділі **[Releases](https://github.com/AriSnowie97/minigame_minicafe_bd/releases)** на GitHub.
+* **Готова гра для Windows:** [⬇️ Завантажити MiniCafe.exe (v1.1.0, ~250 МБ)](https://github.com/AriSnowie97/minigame_minicafe_bd/releases/download/v1.1.0/MiniCafe.exe) напряму або у розділі **[Releases](https://github.com/AriSnowie97/minigame_minicafe_bd/releases)** на GitHub.
 * **Самостійна збірка:** У корені проекту є скрипт автоматичної збірки через PyInstaller:
   ```powershell
   powershell -ExecutionPolicy Bypass -File build_exe.ps1

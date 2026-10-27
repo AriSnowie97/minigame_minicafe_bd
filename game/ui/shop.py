@@ -71,70 +71,170 @@ SHOP_CATEGORIES = [
     },
     {
         "id": "menu",
-        "title": "Розширення меню",
+        "title": "Меню та продукти",
         "items": [
+            # Базові напої (бариста)
+            {
+                "id": "menu_coffee",
+                "menu_item_id": 1,
+                "name": "Кава (Еспресо)",
+                "desc": "Базовий напій: ароматний еспресо у чашці (+50 монет).",
+                "price": 0,
+                "is_base": True,
+                "restock_price": 25,
+                "icon": "item_coffee_cup",
+            },
+            {
+                "id": "menu_tea",
+                "menu_item_id": 2,
+                "name": "Чай чорний",
+                "desc": "Базовий напій: гарячий заварений чай (+40 монет).",
+                "price": 0,
+                "is_base": True,
+                "restock_price": 20,
+                "icon": "item_black_tea",
+            },
+            {
+                "id": "menu_cappuccino",
+                "menu_item_id": 15,
+                "name": "Капучино",
+                "desc": "Базовий напій: еспресо з ніжною пінкою (+65 монет).",
+                "price": 0,
+                "is_base": True,
+                "restock_price": 30,
+                "icon": "item_cappuccino",
+            },
+            {
+                "id": "menu_latte",
+                "menu_item_id": 12,
+                "name": "Лате",
+                "desc": "Базовий напій: еспресо та збите молоко (+60 монет).",
+                "price": 0,
+                "is_base": True,
+                "restock_price": 30,
+                "icon": "item_latte",
+            },
+            {
+                "id": "menu_iced_latte",
+                "menu_item_id": 4,
+                "name": "Айс лате",
+                "desc": "Базовий напій: охолоджений лате з льодом (+85 монет).",
+                "price": 0,
+                "is_base": True,
+                "restock_price": 35,
+                "icon": "item_iced_coffee",
+            },
+            {
+                "id": "menu_takeaway",
+                "menu_item_id": 13,
+                "name": "Кава з собою",
+                "desc": "Базовий напій: кава у зручному стаканчику (+45 монет).",
+                "price": 0,
+                "is_base": True,
+                "restock_price": 20,
+                "icon": "item_takeaway_cup",
+            },
+            # Розширення меню (випічка та десерти)
             {
                 "id": "menu_cookies",
+                "menu_item_id": 3,
                 "name": "Домашнє печиво",
                 "desc": "Бариста додає до меню шоколадне печиво (+65 монет).",
                 "price": 50,
+                "restock_price": 30,
                 "icon": "item_cookies",
             },
             {
                 "id": "menu_croissant",
+                "menu_item_id": 14,
                 "name": "Круасани",
                 "desc": "Бариста додає до меню хрусткі круасани (+55 монет).",
                 "price": 60,
+                "restock_price": 28,
                 "icon": "item_croissant",
             },
             {
                 "id": "menu_cake",
+                "menu_item_id": 5,
                 "name": "Святковий Тортик",
-                "desc": "Преміум десерт (+110 монет): готує кухар, якщо він найнятий.",
+                "desc": "Преміум десерт (+110 монет): готує кухар.",
                 "price": 100,
+                "restock_price": 45,
                 "icon": "item_cake",
+                "is_chef": True,
             },
+            # Страви шеф-кухаря (кухня)
             {
                 "id": "menu_bruschetta",
+                "menu_item_id": 6,
                 "name": "Брускета",
                 "desc": "Страва кухні (потрібен кухар): +70 монет.",
                 "price": 90,
+                "restock_price": 35,
                 "icon": "item_bruschetta",
+                "requires": "chef",
+                "requires_text": "Потрібен кухар",
+                "is_chef": True,
             },
             {
                 "id": "menu_syrniki",
+                "menu_item_id": 7,
                 "name": "Сирники",
                 "desc": "Страва кухні (потрібен кухар): +90 монет.",
                 "price": 100,
+                "restock_price": 40,
                 "icon": "item_syrniki",
+                "requires": "chef",
+                "requires_text": "Потрібен кухар",
+                "is_chef": True,
             },
             {
                 "id": "menu_omelette",
+                "menu_item_id": 8,
                 "name": "Омлет з беконом",
                 "desc": "Страва кухні (потрібен кухар): +100 монет.",
                 "price": 110,
+                "restock_price": 45,
                 "icon": "item_omelette_bacon",
+                "requires": "chef",
+                "requires_text": "Потрібен кухар",
+                "is_chef": True,
             },
             {
                 "id": "menu_caesar",
+                "menu_item_id": 9,
                 "name": "Салат Цезар",
                 "desc": "Страва кухні (потрібен кухар): +105 монет.",
                 "price": 120,
+                "restock_price": 50,
                 "icon": "item_caesar_salad",
+                "requires": "chef",
+                "requires_text": "Потрібен кухар",
+                "is_chef": True,
             },
             {
                 "id": "menu_tiramisu",
+                "menu_item_id": 10,
                 "name": "Тірамісу",
                 "desc": "Страва кухні (потрібен кухар): +120 монет.",
                 "price": 130,
+                "restock_price": 55,
                 "icon": "item_tiramisu",
+                "requires": "chef",
+                "requires_text": "Потрібен кухар",
+                "is_chef": True,
             },
             {
                 "id": "menu_borscht",
+                "menu_item_id": 11,
                 "name": "Борщ",
                 "desc": "Страва кухні (потрібен кухар): +130 монет.",
                 "price": 140,
+                "restock_price": 55,
                 "icon": "item_borscht",
+                "requires": "chef",
+                "requires_text": "Потрібен кухар",
+                "is_chef": True,
             },
         ],
     },
@@ -152,7 +252,7 @@ class ShopModal:
         self.y = (HEIGHT - self.height) // 2
         self.close_rect = pygame.Rect(self.x + self.width - 44, self.y + 14, 30, 30)
 
-        self.current_tab = 0  # 0: Кафе/Персонал, 1: Меню
+        self.current_tab = 0  # 0: Кафе/Персонал, 1: Меню та продукти
         self.tab_rects = [
             pygame.Rect(self.x + 24, self.y + 70, 200, 36),
             pygame.Rect(self.x + 234, self.y + 70, 200, 36),
@@ -171,7 +271,7 @@ class ShopModal:
     def close(self):
         self.is_open = False
 
-    def handle_event(self, event: pygame.event.Event, money: int, upgrades: Dict[str, Any]) -> Tuple[bool, int, Optional[str]]:
+    def handle_event(self, event: pygame.event.Event, money: int, upgrades: Dict[str, Any], stock: Optional[Dict[int, int]] = None) -> Tuple[bool, int, Optional[Any]]:
         if not self.is_open:
             return False, money, None
 
@@ -217,18 +317,36 @@ class ShopModal:
                 item_id = item["id"]
                 btn_r = self._btn_rects.get(item_id)
                 if btn_r and btn_r.collidepoint(mx, my):
+                    is_menu_tab = (self.current_tab == 1)
+                    is_unlocked = item.get("is_base", False) or upgrades.get(item_id, False)
+
+                    # 1. Повторна покупка позиції в меню (замовлення поставки +10 шт машинки)
+                    if is_menu_tab and is_unlocked:
+                        restock_cost = item.get("restock_price", 30)
+                        if money >= restock_cost:
+                            new_money = money - restock_cost
+                            audio.play("cash_register")
+                            audio.play("star", mult=0.8, delay=0.25)
+                            return True, new_money, {"type": "restock", "item": item}
+                        else:
+                            audio.play("ui_disabled")
+                            return True, money, None
+
+                    # 2. Перша покупка / розблокування
                     req = item.get("requires")
                     if req and not upgrades.get(req, False):
                         audio.play("ui_disabled")
                         return True, money, None
-                    if not upgrades.get(item_id, False) and money >= item["price"]:
+
+                    if not is_unlocked and money >= item["price"]:
                         new_money = money - item["price"]
                         upgrades[item_id] = True
                         audio.play("cash_register")
                         audio.play("star", mult=0.8, delay=0.25)
                         return True, new_money, item_id
-                    if not upgrades.get(item_id, False):
-                        audio.play("ui_disabled")   # не хватает монет
+
+                    if not is_unlocked:
+                        audio.play("ui_disabled")   # не вистачає монет
             return True, money, None
 
         if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
@@ -236,7 +354,7 @@ class ShopModal:
 
         return False, money, None
 
-    def draw(self, surface: pygame.Surface, money: int, upgrades: Dict[str, Any]):
+    def draw(self, surface: pygame.Surface, money: int, upgrades: Dict[str, Any], stock: Optional[Dict[int, int]] = None):
         if not self.is_open:
             return
 
@@ -295,9 +413,10 @@ class ShopModal:
         # 5. Список товарів активної вкладки
         cat_items = SHOP_CATEGORIES[self.current_tab]["items"]
         mouse_pos = pygame.mouse.get_pos()
-        f_name = assets.font_ui(16, bold=True)
+        f_name = assets.font_ui(15, bold=True)
         f_desc = assets.font_ui(12)
-        f_btn  = assets.font_ui(13, bold=True)
+        f_btn  = assets.font_ui(12, bold=True)
+        f_stock = assets.font_ui(11, bold=True)
 
         start_y = self.y + 116
         row_h = 74
@@ -309,10 +428,12 @@ class ShopModal:
         orig_clip = surface.get_clip()
         surface.set_clip(list_clip)
 
+        is_menu_tab = (self.current_tab == 1)
+
         for i, item in enumerate(cat_items):
             item_id = item["id"]
             iy = start_y + i * row_h - self.scroll_y
-            owned = upgrades.get(item_id, False)
+            is_unlocked = item.get("is_base", False) or upgrades.get(item_id, False)
 
             # Розділювач рядків
             if i > 0:
@@ -326,32 +447,84 @@ class ShopModal:
             item_img = assets.image_by_height(item["icon"], 40)
             surface.blit(item_img, item_img.get_rect(center=icon_box.center))
 
-            # Назва та опис
-            name_col = C.TEXT_DARK if not owned else C.DARK_SAGE
+            # Назва та бейдж запасу
+            name_col = C.TEXT_DARK if not is_unlocked else C.DARK_SAGE
             name_t = assets.render_outlined(f_name, item["name"], name_col, (255, 255, 255), 1)
             surface.blit(name_t, (self.x + 90, iy + 6))
+
+            # Якщо це страва/напій — показуємо поточний залишок
+            if is_menu_tab:
+                mid = item.get("menu_item_id", 1)
+                cur_cnt = stock.get(mid, 20) if stock is not None else 20
+                if cur_cnt == 0:
+                    badge_bg = (255, 225, 225)
+                    badge_border = (220, 80, 80)
+                    badge_txt_col = (180, 30, 30)
+                    badge_str = "0 шт (Немає!)"
+                elif cur_cnt <= 5:
+                    badge_bg = (255, 245, 215)
+                    badge_border = (235, 150, 40)
+                    badge_txt_col = (180, 100, 10)
+                    badge_str = f"{cur_cnt} шт (Мало)"
+                else:
+                    badge_bg = (230, 245, 230)
+                    badge_border = (110, 185, 110)
+                    badge_txt_col = (45, 130, 45)
+                    badge_str = f"{cur_cnt} шт"
+
+                st_t = f_stock.render(badge_str, True, badge_txt_col)
+                sw, sh = st_t.get_width() + 10, 18
+                sx = self.x + 90 + name_t.get_width() + 10
+                sy = iy + 6
+                pygame.draw.rect(surface, badge_bg, (sx, sy, sw, sh), border_radius=6)
+                pygame.draw.rect(surface, badge_border, (sx, sy, sw, sh), 1, border_radius=6)
+                surface.blit(st_t, (sx + 5, sy + 2))
 
             desc_t = f_desc.render(item["desc"], True, C.DARK_SAGE)
             surface.blit(desc_t, (self.x + 90, iy + 34))
 
             # Кнопка дії
-            btn_r = pygame.Rect(self.x + self.width - 150, iy + 14, 130, 36)
+            btn_r = pygame.Rect(self.x + self.width - 155, iy + 14, 135, 36)
             self._btn_rects[item_id] = btn_r
 
-            if owned:
+            hover = btn_r.collidepoint(mouse_pos)
+
+            # 1. Позиція меню, яка вже доступна -> кнопка замовлення поставки машинки (+10 шт)
+            if is_menu_tab and is_unlocked:
+                restock_cost = item.get("restock_price", 30)
+                can_afford = (money >= restock_cost)
+                if can_afford:
+                    bg_col = (90, 175, 110) if hover else (70, 150, 90)
+                    border_col = (50, 120, 70)
+                    txt_col = C.WHITE
+                else:
+                    bg_col = (220, 220, 220)
+                    border_col = (180, 180, 180)
+                    txt_col = (130, 130, 130)
+
+                pygame.draw.rect(surface, bg_col, btn_r, border_radius=8)
+                pygame.draw.rect(surface, border_col, btn_r, 1, border_radius=8)
+                txt_str = f"+10 шт ({restock_cost} м)"
+                txt = assets.render_outlined(f_btn, txt_str, txt_col, (35, 75, 45) if can_afford else (170, 170, 170), 1)
+                surface.blit(txt, txt.get_rect(center=btn_r.center))
+
+            # 2. Не меню, а покращення кафе/персонал, яке вже куплено
+            elif not is_menu_tab and is_unlocked:
                 pygame.draw.rect(surface, (225, 245, 225), btn_r, border_radius=8)
                 pygame.draw.rect(surface, C.PATIENCE_GOOD, btn_r, 1, border_radius=8)
                 txt = assets.render_outlined(f_btn, "Куплено ✓", C.PATIENCE_GOOD, (240, 255, 240), 1)
                 surface.blit(txt, txt.get_rect(center=btn_r.center))
+
+            # 3. Вимагає іншого покращення
             elif item.get("requires") and not upgrades.get(item["requires"], False):
                 pygame.draw.rect(surface, (225, 222, 215), btn_r, border_radius=8)
                 pygame.draw.rect(surface, (180, 178, 170), btn_r, 1, border_radius=8)
                 txt = assets.render_outlined(f_btn, item.get("requires_text", "Недоступно"), (125, 120, 112), (240, 236, 230), 1)
                 surface.blit(txt, txt.get_rect(center=btn_r.center))
+
+            # 4. Позиція ще не куплена -> кнопка розблокування
             else:
                 can_afford = (money >= item["price"])
-                hover = btn_r.collidepoint(mouse_pos)
-
                 if can_afford:
                     bg_col = C.BTN_HOVER if hover else C.BTN_BG
                     border_col = C.TERRACOTTA
@@ -363,9 +536,9 @@ class ShopModal:
 
                 pygame.draw.rect(surface, bg_col, btn_r, border_radius=8)
                 pygame.draw.rect(surface, border_col, btn_r, 1, border_radius=8)
-
                 txt_str = f"{item['price']} монет"
                 txt = assets.render_outlined(f_btn, txt_str, txt_col, (60, 45, 40) if can_afford else (170, 170, 170), 1)
                 surface.blit(txt, txt.get_rect(center=btn_r.center))
 
         surface.set_clip(orig_clip)
+

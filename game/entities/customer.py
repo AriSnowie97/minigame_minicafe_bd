@@ -239,18 +239,9 @@ class Customer:
         else:
             self._draw_cat(surface, ix, iy + bob)
 
-        # Еда на столике перед котиком во время поедания (точно по центру круглого столика)
+        # Еда та напої на столику перед котиком (розставлені по кругу/дузі стільниці)
         if self.state in (CustomerState.EATING, CustomerState.PAYING):
-            from game.core.settings import get_item_sprite, CHAIR_RIGHT_TABLES
-            is_right = getattr(self.table, "table_number", 0) in CHAIR_RIGHT_TABLES
-            dish_x = ix + (12 if is_right else -12)
-            if len(self.menu_items) > 1:
-                from game.ui.dish_row import blit_dish_row
-                blit_dish_row(surface, self.menu_items[:4], dish_x, iy - 6 + bob, 22 if len(self.menu_items) <= 2 else 17, 2)
-            else:
-                food_spr_name = get_item_sprite(self.menu_item.get("id", 1))
-                food_img = assets.image_by_height(food_spr_name, 28)
-                surface.blit(food_img, food_img.get_rect(center=(dish_x, iy - 6 + bob)))
+            self._draw_table_dishes(surface, ix, iy, bob)
 
         # Пузырь заказа (показывается когда котик ждёт заказ)
         if self._bubble_alpha > 0 and self.state == CustomerState.WAITING:
@@ -262,6 +253,56 @@ class Customer:
         # Монеты после оплаты
         if self._coins_show > 0:
             self._draw_coins(surface, ix, iy)
+
+    def _draw_table_dishes(self, surface: pygame.Surface, ix: int, iy: int, bob: int):
+        """Отрисовка блюд и напитков на круглом столике во время трапезы (расставлены по кругу/дуге столика)"""
+        from game.core.settings import get_item_sprite, CHAIR_RIGHT_TABLES
+        is_right = getattr(self.table, "table_number", 0) in CHAIR_RIGHT_TABLES
+        items = getattr(self, "menu_items", [self.menu_item] if self.menu_item else [])
+        n = len(items)
+        if n == 0:
+            return
+
+        if n == 1:
+            offsets = [(4 if is_right else -4, -16)]
+            item_h = 26
+        elif n == 2:
+            if is_right:
+                offsets = [(-14, -20), (5, -12)]
+            else:
+                offsets = [(14, -20), (-5, -12)]
+            item_h = 24
+        elif n == 3:
+            if is_right:
+                offsets = [(-8, -23), (-18, -13), (6, -13)]
+            else:
+                offsets = [(8, -23), (18, -13), (-6, -13)]
+            item_h = 22
+        else:  # 4 страви (VIP-гість або велике замовлення)
+            if is_right:
+                offsets = [
+                    (-7,  -24),  # зверху по центру
+                    (9,   -20),  # справа біля котика
+                    (-21, -14),  # зліва по краю
+                    (-3,  -9),   # знизу спереду
+                ]
+            else:
+                offsets = [
+                    (7,   -24),
+                    (-9,  -20),
+                    (21,  -14),
+                    (3,   -9),
+                ]
+            item_h = 20
+
+        # Сортуємо страви за координатою Y (глибиною), щоб передні предмети природно перекривали задні
+        paired = list(zip(items[:4], offsets))
+        paired.sort(key=lambda p: p[1][1])
+
+        for it, (dx, dy) in paired:
+            spr_name = get_item_sprite(it.get("id", 1))
+            img = assets.image_by_height(spr_name, item_h)
+            surface.blit(img, img.get_rect(center=(ix + dx, iy + dy + bob)))
 
     # ------------------------------------------------------------------
     def _draw_cat(self, surface, x, y, size=36):

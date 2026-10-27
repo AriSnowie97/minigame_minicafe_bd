@@ -174,3 +174,37 @@ INSERT INTO employees (id, fullname, position) VALUES
     (3, 'Шеф-кухар Мурчик', 'кухар'),
     (4, 'Офіціант Пушок',   'офіціант')
 ON CONFLICT (id) DO UPDATE SET fullname = EXCLUDED.fullname, position = EXCLUDED.position;
+
+-- Затрати на закупівлю продуктів (поставки машинки з курьєром)
+CREATE TABLE IF NOT EXISTS cafe_expenses (
+    id           SERIAL PRIMARY KEY,
+    gameday      INT NOT NULL,
+    menuitemid   INT NOT NULL REFERENCES menuitems(id),
+    quantity     INT NOT NULL CHECK (quantity > 0),
+    cost         NUMERIC(8, 2) NOT NULL CHECK (cost >= 0),
+    created_at   TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Таблиця кращих гравців (онлайн-рейтинг для сайту)
+CREATE TABLE IF NOT EXISTS players (
+    id          SERIAL PRIMARY KEY,
+    name        VARCHAR(50) NOT NULL UNIQUE,
+    total_money INT NOT NULL DEFAULT 0,
+    days_played INT NOT NULL DEFAULT 0,
+    orders_done INT NOT NULL DEFAULT 0,
+    rating      NUMERIC(3, 2) NOT NULL DEFAULT 3.0,
+    updated_at  TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Початкові гравці у таблиці лідерів
+INSERT INTO players (name, total_money, days_played, orders_done, rating) VALUES
+    ('Аріна (Власниця)',    4850, 14, 128, 5.0),
+    ('Мурчик_Шеф',         3920, 12, 105, 4.9),
+    ('Барсик_Кавоман',     3150, 10,  89, 4.8),
+    ('Пушок_Експрес',      2480,  8,  72, 4.7),
+    ('Карамелька_Бариста', 1890,  6,  54, 4.6),
+    ('КотоШеф_UA',         1420,  5,  42, 4.5),
+    ('Лапка_Геймер',        980,  3,  29, 4.3),
+    ('Світлячок',           650,  2,  18, 4.1)
+ON CONFLICT (name) DO NOTHING;
+

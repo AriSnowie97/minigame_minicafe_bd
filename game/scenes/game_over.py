@@ -10,6 +10,8 @@ from game.core.audio      import audio
 from game.ui.button       import Button
 from game.ui.hud          import draw_star
 from game.ui.shop         import ShopModal
+from game.core.profile    import get_player_name
+from database             import queries
 
 
 class GameOverScene:
@@ -24,6 +26,8 @@ class GameOverScene:
         self.upgrades    = {}
         self.failed      = False
         self.fail_reason = ""
+        self.stock       = {}
+        self.player_name = get_player_name()
 
         cx = WIDTH // 2
         self.btn_shop = Button(pygame.Rect(cx - 190, 485, 180, 44),
@@ -39,7 +43,7 @@ class GameOverScene:
 
     # ------------------------------------------------------------------
     def on_enter(self, day=1, money=0, rating=3.0, orders_done=0, orders_bad=0, upgrades=None,
-                 failed=False, fail_reason=""):
+                 failed=False, fail_reason="", stock=None, player_name=None):
         self.day        = day
         self.money      = money
         self.rating     = rating
@@ -48,6 +52,8 @@ class GameOverScene:
         self.upgrades   = upgrades or {}
         self.failed      = failed
         self.fail_reason = fail_reason
+        self.stock       = dict(stock) if stock else {}
+        self.player_name = player_name or get_player_name()
         self._t         = 0.0
         self._coins_anim = 0.0
         self.shop_modal.close()
@@ -68,6 +74,12 @@ class GameOverScene:
         handled, new_money, bought_id = self.shop_modal.handle_event(event, self.money, self.upgrades)
         if handled:
             self.money = new_money
+            if isinstance(bought_id, dict) and bought_id.get("type") == "restock":
+                item = bought_id["item"]
+                mid = item.get("menu_item_id", 1)
+                cost = item.get("restock_price", 30)
+                self.stock[mid] = self.stock.get(mid, 0) + 10
+                queries.log_supply_expense(self.day, mid, 10, cost)
             return
 
         if not self.failed and self.btn_shop.handle_event(event):
@@ -78,19 +90,21 @@ class GameOverScene:
             self.manager.switch("stats", back="game_over", back_kwargs=dict(
                 day=self.day, money=self.money, rating=self.rating, orders_done=self.orders_done,
                 orders_bad=self.orders_bad, upgrades=self.upgrades, failed=self.failed,
-                fail_reason=self.fail_reason))
+                fail_reason=self.fail_reason, stock=self.stock, player_name=self.player_name))
             return
 
         if self.btn_next.handle_event(event):
             if self.failed:
                 # Провал: гра починається з нуля
-                self.manager.switch("cafe_hall", day=1, money=0, rating=3.0, upgrades={})
+                self.manager.switch("cafe_hall", day=1, money=0, rating=3.0, upgrades={}, player_name=self.player_name)
             else:
                 self.manager.switch("cafe_hall",
                                     day=self.day + 1,
                                     money=self.money,
                                     rating=self.rating,
-                                    upgrades=self.upgrades)
+                                    upgrades=self.upgrades,
+                                    stock=self.stock,
+                                    player_name=self.player_name)
         if self.btn_menu.handle_event(event):
             self.manager.switch("main_menu")
 
@@ -202,7 +216,7 @@ class GameOverScene:
         self._draw_happy_cat(surface, cx, panel_y - 25)
 
         # 10. Модальне вікно магазину (якщо відкрите)
-        self.shop_modal.draw(surface, self.money, self.upgrades)
+        self.shop_modal.draw(surface, self.money, self.upgrades, self.stock)
 
     def _draw_happy_cat(self, surface, x, y):
         bob = int(math.sin(self._t * 2) * 3)

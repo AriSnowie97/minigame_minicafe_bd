@@ -42,7 +42,10 @@ print("2. Hall Day 1 screenshot saved: screenshot_hall_day1_verified.png")
 # Клік по столику з клієнтом
 if cafe_scene.customers:
     cust = cafe_scene.customers[0]
+    cust.x = cust.target_x
+    cust.y = cust.target_y
     cust.state = CustomerState.WAITING
+    cust.table.state = TableState.SEATED
     # Клік по столику
     cafe_scene._on_table_click(cust.table)
     print(f"3a. Order taken manually for table {cust.table.table_number}. Pending barista: {len(cafe_scene.pending_barista_orders)}")

@@ -22,12 +22,14 @@ from game.entities.cook     import CatCook
 from game.ui.hud            import HUD
 from game.ui.shop           import ShopModal
 from game.core.progression  import get_day_config
+from game.entities.delivery import DeliveryManager
+from game.core.profile      import get_player_name
 from database               import queries
 
 # Горизонтальні координати кімнат у просторі безшовного панорамування камери
-HALL_TABLES = (1, 2, 3, 4, 9, 10)
+HALL_TABLES = (2, 3, 4, 9, 10)
 CHEF_ITEM_IDS = (5, 6, 7, 8, 9, 10, 11)   # страви кухаря (тортик теж, якщо кухар найнятий); напої — завжди бариста
-HALL_SERVE = (830.0, 568.0)            # місце видачі напоїв на барній стійці в залі (по центру дерев'яної стійки, перед баристою)
+HALL_SERVE = (820.0, 500.0)            # місце видачі напоїв безпосередньо на барній стійці перед баристою
 KITCHEN_SERVE = (610.0, 604.0)         # сервірувальний столик на кухні
 HALL_PICKUP = (815.0, 585.0)           # де офіціант стоїть біля барної стійки в залі
 KITCHEN_PICKUP = (664.0, 608.0)        # де офіціант стоїть біля сервірувального столика на кухні
@@ -128,11 +130,14 @@ class CafeHallScene:
         self.orders_done  = 0
         self.orders_bad   = 0
         self.time_left    = float(DAY_DURATION)
+        self.player_name  = get_player_name()
+        self.stock        = {}
 
         # Оновлення кафе та магазин
         self.upgrades     = {}
         self.shop_modal   = ShopModal()
         self.day_cfg      = get_day_config(1, self.upgrades)
+        self.delivery_manager = DeliveryManager(self)
 
         # Анімація приготування та "Дінь!"
         self.star_particles: list[StarParticle] = []
@@ -189,7 +194,7 @@ class CafeHallScene:
         self.arch_terrace_to_hall = pygame.Rect(440, 180, 110, 140)
 
         # Стійка видачі готових страв баристи (у залі)
-        self.counter_pickup_rect = pygame.Rect(int(HALL_SERVE[0]) - 38, int(HALL_SERVE[1]) - 74, 76, 78)
+        self.counter_pickup_rect = pygame.Rect(int(HALL_SERVE[0]) - 40, int(HALL_SERVE[1]) - 40, 80, 80)
         # Стіл видачі готових страв на кухні
         self.kitchen_pickup_rect  = pygame.Rect(int(KITCHEN_SERVE[0]) - 38, int(KITCHEN_SERVE[1]) - 74, 76, 78)
 
@@ -321,11 +326,12 @@ class CafeHallScene:
         self.barista.screen_x = cx
         self.barista.screen_y = cy
         self.barista.hitbox = pygame.Rect(cx - 110, cy - 95, 230, 160)
-        self.counter_pickup_rect = pygame.Rect(int(HALL_SERVE[0]) - 38, int(HALL_SERVE[1]) - 74, 76, 78)
+        self.counter_pickup_rect = pygame.Rect(int(HALL_SERVE[0]) - 40, int(HALL_SERVE[1]) - 40, 80, 80)
 
     # ------------------------------------------------------------------
-    def on_enter(self, day: int = 1, money: int = 0, rating: float = 3.0, upgrades: dict = None):
+    def on_enter(self, day: int = 1, money: int = 0, rating: float = 3.0, upgrades: dict = None, **kwargs):
         self.day = day
+        self.player_name = kwargs.get("player_name", getattr(self, "player_name", get_player_name()))
 
         # Повне скидання при старті 1 дня: кухня закрита, тераса закрита, офіціантів немає —
         # як і на початку гри, тільки гравець і бариста!
@@ -377,9 +383,20 @@ class CafeHallScene:
         tables_data      = queries.get_tables()
         self._employees  = queries.get_employees()
 
+        # Запаси страв та напоїв кафе (по 20 шт при старті)
+        stock_kw = kwargs.get("stock")
+        if stock_kw is not None:
+            self.stock = dict(stock_kw)
+        elif self.day == 1 or not self.stock:
+            self.stock = {it["id"]: 20 for it in self._menu_items} if self._menu_items else {i: 20 for i in range(1, 16)}
+        for it in (self._menu_items or []):
+            self.stock.setdefault(it["id"], 20)
+
         # Створюємо столики
         self._tables = []
         for td in tables_data:
+            if td.get("tablenumber") == 1:
+                continue  # Столик №1 прибрано за бажанням гравця
             tid = td["id"]
             tbl = CafeTable(
                 db_id=tid,
@@ -418,28 +435,43 @@ class CafeHallScene:
     def handle_event(self, event: pygame.event.Event):
         # 1. Спершу обробка модального вікна магазину (якщо відкрите)
         if self.shop_modal.is_open:
-            handled, new_money, bought_id = self.shop_modal.handle_event(event, self.money, self.upgrades)
+            handled, new_money, bought_id = self.shop_modal.handle_event(event, self.money, self.upgrades, self.stock)
             if handled:
                 if bought_id:
                     self.money = new_money
-                    self.day_cfg = get_day_config(self.day, self.upgrades)
-                    if bought_id == "monstera":
-                        self.rating = min(5.0, self.rating + 0.5)
-                    for tbl in self._tables:
-                        if tbl.table_number == 5:
-                            tbl.is_vip = self.upgrades.get("vip_armchair", False)
-                    if bought_id == "chef":
+                    # Перевіряємо, чи це повторна покупка (замовлення поставки продуктів машинки)
+                    if isinstance(bought_id, dict) and bought_id.get("type") == "restock":
+                        item = bought_id["item"]
+                        mid = item.get("menu_item_id", 1)
+                        cost = item.get("restock_price", 30)
+                        is_chef = item.get("is_chef", False)
+                        # Записуємо затрати кафе на продукти у базу даних
+                        queries.log_supply_expense(self.day, mid, 10, cost)
+                        # Запускаємо машинку постачання та котика-вантажника
+                        self.delivery_manager.order_delivery(mid, item["name"], is_chef=is_chef, quantity=10, icon=item.get("icon", ""))
                         self.notifications.append(
-                            Notification("Мурчик на кухні! Відкрито кухню та нові страви :3", C.NOTIF_GOOD, 3.5)
-                        )
-                    elif bought_id == "terrace":
-                        self.notifications.append(
-                            Notification("Літню терасу відкрито! Перемикайтесь кнопкою 'Тераса' вгорі! 🌿", C.NOTIF_GOOD, 3.5)
+                            Notification(f"Замовлено поставку: {item['name']} (+10 шт)! Машинка виїхала :3", (70, 160, 90), 3.0)
                         )
                     else:
-                        self.notifications.append(
-                            Notification("Покращення успішно придбано! :3", C.NOTIF_GOOD, 2.5)
-                        )
+                        upgrade_id = bought_id
+                        self.day_cfg = get_day_config(self.day, self.upgrades)
+                        if upgrade_id == "monstera":
+                            self.rating = min(5.0, self.rating + 0.5)
+                        for tbl in self._tables:
+                            if tbl.table_number == 5:
+                                tbl.is_vip = self.upgrades.get("vip_armchair", False)
+                        if upgrade_id == "chef":
+                            self.notifications.append(
+                                Notification("Мурчик на кухні! Відкрито кухню та нові страви :3", C.NOTIF_GOOD, 3.5)
+                            )
+                        elif upgrade_id == "terrace":
+                            self.notifications.append(
+                                Notification("Літню терасу відкрито! Перемикайтесь кнопкою 'Тераса' вгорі! 🌿", C.NOTIF_GOOD, 3.5)
+                            )
+                        else:
+                            self.notifications.append(
+                                Notification("Покращення успішно придбано! :3", C.NOTIF_GOOD, 2.5)
+                            )
                 return
 
         if event.type == pygame.KEYDOWN:
@@ -823,6 +855,18 @@ class CafeHallScene:
         if tbl.order_id:
             queries.complete_order(tbl.order_id)
 
+        # Списання проданої кількості страв із запасів складу кафе
+        served_items = getattr(tbl, "order_items", [cust.menu_item] if getattr(cust, "menu_item", None) else [])
+        for it in served_items:
+            mid = it.get("id", 1)
+            if mid in self.stock:
+                self.stock[mid] = max(0, self.stock[mid] - 1)
+                if self.stock[mid] == 0:
+                    fname = locale.get(f"food.{MENU_ITEM_KEYS.get(mid, 'cappuccino')}")
+                    self.notifications.append(
+                        Notification(f"Закінчились запаси: {fname} (0 шт)! Замовте доставку в магазині!", (220, 80, 80), 3.5)
+                    )
+
         cust.start_eating()
         tbl.state = TableState.PAYING
 
@@ -877,7 +921,7 @@ class CafeHallScene:
             self.ready_pop_anim = 1.0
             # Феєрверк золотистих зірочок на стійці роздачі та дзвоник баристи
             for _ in range(16):
-                self.star_particles.append(StarParticle(HALL_SERVE[0] + 9, HALL_SERVE[1] - 46))
+                self.star_particles.append(StarParticle(HALL_SERVE[0], HALL_SERVE[1] - 8))
             self.barista.say("Дінь! Замовлення готове! :3", duration=2.4)
         items = getattr(tbl, "order_items", [tbl.menu_item] if getattr(tbl, "menu_item", None) else [])
         food_names = " + ".join(locale.get(f"food.{MENU_ITEM_KEYS.get(it.get('id', 1), 'cappuccino')}") for it in items)
@@ -902,6 +946,18 @@ class CafeHallScene:
         if not pool:
             pool = list(self._menu_items)
         if not pool:
+            return
+
+        # Фільтруємо страви, на які є запаси продуктів на складі
+        available_pool = [m for m in pool if self.stock.get(m.get("id", 1), 0) > 0]
+        if available_pool:
+            pool = available_pool
+        else:
+            # Усі страви закінчилися — нагадуємо про замовлення поставки машинки
+            if not any("закінчилися" in n.text.lower() for n in self.notifications[-2:]):
+                self.notifications.append(
+                    Notification("Закінчилися всі продукти! Замовте поставку машинки в Магазині (M)!", (220, 80, 80), 3.5)
+                )
             return
 
         tbl = random.choice(free)
@@ -1066,6 +1122,7 @@ class CafeHallScene:
     # ------------------------------------------------------------------
     def update(self, dt: float):
         self._t += dt
+        self.delivery_manager.update(dt)
 
         # Якщо відкритий магазин — пауза часу дня, щоб гравець міг спокійно обирати
         if self.shop_modal.is_open:
@@ -1165,6 +1222,7 @@ class CafeHallScene:
         elif self.orders_bad > 5:
             fail_reason = "game_over.fail_orders"
         if fail_reason:
+            queries.save_player_stats(self.player_name, self.money, self.day, self.orders_done, self.rating)
             self.manager.switch("game_over",
                                 day=self.day,
                                 money=self.money,
@@ -1172,19 +1230,24 @@ class CafeHallScene:
                                 orders_done=self.orders_done,
                                 orders_bad=self.orders_bad,
                                 upgrades=self.upgrades,
+                                stock=self.stock,
+                                player_name=self.player_name,
                                 failed=True,
                                 fail_reason=fail_reason)
             return
 
         # Кінець дня
         if self.time_left <= 0:
+            queries.save_player_stats(self.player_name, self.money, self.day, self.orders_done, self.rating)
             self.manager.switch("game_over",
                                 day=self.day,
                                 money=self.money,
                                 rating=self.rating,
                                 orders_done=self.orders_done,
                                 orders_bad=self.orders_bad,
-                                upgrades=self.upgrades)
+                                upgrades=self.upgrades,
+                                stock=self.stock,
+                                player_name=self.player_name)
 
     # ------------------------------------------------------------------
     def draw(self, surface: pygame.Surface):
@@ -1226,6 +1289,8 @@ class CafeHallScene:
                 self._draw_kitchen_room(surface, offset_x=dx)
                 for w in self._waiters_in("kitchen"):
                     w.draw(surface, offset_x=dx)
+                # Котик-кур'єр на кухні
+                self.delivery_manager.draw_courier(surface, "kitchen", offset_x=dx)
 
             elif room_name == "hall":
                 # Стіни та декор
@@ -1237,6 +1302,10 @@ class CafeHallScene:
                 # Зона готування та видачі
                 self._draw_cooking_station(surface, offset_x=dx)
                 self._draw_counter_pickup_station(surface, offset_x=dx)
+
+                # Машинка доставки та котик-кур'єр у залі
+                self.delivery_manager.draw_van(surface, offset_x=dx)
+                self.delivery_manager.draw_courier(surface, "hall", offset_x=dx)
 
                 # Сортування по глибині (Y): столики залу 1..4, клієнти, офіціант
                 draw_list = []
@@ -1323,7 +1392,7 @@ class CafeHallScene:
 
         # 6. Модальне вікно магазину (якщо відкрите)
         if self.shop_modal.is_open:
-            self.shop_modal.draw(surface, self.money, self.upgrades)
+            self.shop_modal.draw(surface, self.money, self.upgrades, self.stock)
 
     # ------------------------------------------------------------------
     def _draw_hall_passages(self, surface: pygame.Surface, offset_x: int = 0):
@@ -1658,7 +1727,7 @@ class CafeHallScene:
         if not ready_tables:
             return
 
-        cx, cy = int(HALL_SERVE[0]) + offset_x, int(HALL_SERVE[1]) - 26
+        cx, cy = int(HALL_SERVE[0]) + offset_x, int(HALL_SERVE[1])
 
         # Анімація пружного вибуху "Дінь!" при щойно приготованій страві
         if self.ready_pop_anim > 0:
@@ -1668,13 +1737,13 @@ class CafeHallScene:
             pygame.draw.circle(ring_surf, (255, 230, 80, ring_alpha), (ring_r, ring_r), ring_r, 3)
             surface.blit(ring_surf, (cx - ring_r, cy - ring_r))
 
-        # Готова страва (або кілька) над клошем
+        # Готова страва (або кілька) безпосередньо на стільниці стійки
         from game.ui.dish_row import blit_dish_row
         top_tbl = ready_tables[0]
         items = getattr(top_tbl, "order_items", [top_tbl.menu_item] if getattr(top_tbl, "menu_item", None) else [])
         bob = int(math.sin(self._t * 6.0) * 2)
         n = len(items)
-        blit_dish_row(surface, items[:4], cx, cy - 18 + bob, 26 if n == 1 else (20 if n <= 2 else 16), 2)
+        blit_dish_row(surface, items[:4], cx, cy + bob, 26 if n == 1 else (20 if n <= 2 else 16), 2)
 
         badge_text = f"№{top_tbl.table_number} Забрати!"
         f = assets.font_ui(12)
@@ -1688,7 +1757,7 @@ class CafeHallScene:
         pygame.draw.polygon(badge, (255, 250, 230), tail_pts)
         pygame.draw.polygon(badge, (230, 150, 40), tail_pts, 1)
         badge.blit(txt, (8, 3))
-        surface.blit(badge, (cx - bw // 2, cy - 18 - 30 - bh))
+        surface.blit(badge, (cx - bw // 2, cy - 15 - bh - 4))
 
     def _draw_carrying_guide(self, surface: pygame.Surface, tbl: CafeTable = None, item: dict = None):
         """Інформаційний бейдж-підказка вгорі екрана, коли несеться страва"""

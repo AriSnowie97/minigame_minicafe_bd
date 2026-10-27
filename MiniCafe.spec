@@ -10,7 +10,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('assets', 'assets'), ('database/schema_postgres.sql', 'database'), ('C:\\Users\\arina\\AppData\\Local\\Temp\\minicafe_build\\embedded.env', '.')],
+    datas=[('assets', 'assets'), ('database/schema_postgres.sql', 'database'), ('C:/Users/arina/AppData/Local/Temp/minicafe_build/embedded.env', '.')],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
@@ -40,5 +40,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['assets\\icon.ico'],
+    icon=['assets/icon.ico'],
 )

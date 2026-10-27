@@ -8,6 +8,7 @@ from game.core.settings   import C, WIDTH, HEIGHT
 from game.core.assets     import assets
 from game.core.localization import locale
 from game.core.audio      import audio
+from game.core.profile    import get_player_name, set_player_name
 from game.ui.button       import Button
 
 
@@ -17,6 +18,8 @@ class MainMenuScene:
         self._t      = 0.0
         self._cats   = []       # декоративные котики (позиция, фаза, цвет)
         self._paws   = []       # декоративные следы лап
+        self.player_name = get_player_name()
+        self.editing_name = False
 
         self._build_ui()
         self._build_decoration()
@@ -25,16 +28,13 @@ class MainMenuScene:
     def _build_ui(self):
         cx = 880
         self.btn_play     = Button(pygame.Rect(cx - 150, 260, 300, 64), locale.get("menu.play"),     font_size=30)
-        self.btn_stats    = Button(pygame.Rect(cx - 150, 350, 300, 64), locale.get("menu.stats"),    font_size=26)
-        self.btn_settings = Button(pygame.Rect(cx - 150, 440, 300, 64), locale.get("menu.settings"), font_size=26)
-        self.btn_quit     = Button(pygame.Rect(cx - 150, 530, 300, 64), locale.get("menu.quit"),     font_size=26)
+        self.btn_stats    = Button(pygame.Rect(cx - 150, 345, 300, 60), locale.get("menu.stats"),    font_size=26)
+        self.btn_settings = Button(pygame.Rect(cx - 150, 425, 300, 60), locale.get("menu.settings"), font_size=26)
+        self.btn_quit     = Button(pygame.Rect(cx - 150, 505, 300, 60), locale.get("menu.quit"),     font_size=26)
 
-        # Кнопки выбора языка (маленькие)
+        # Картка імені гравця (для рейтингу) у правому верхньому кутку замість кнопок мов
+        self.player_name_rect = pygame.Rect(WIDTH - 295, 18, 275, 46)
         self.lang_buttons = []
-        langs = [("uk", "УКР"), ("ru", "РУС"), ("en", "ENG")]
-        for i, (code, label) in enumerate(langs):
-            r = pygame.Rect(WIDTH - 180 + i * 58, 20, 52, 32)
-            self.lang_buttons.append((code, label, r))
 
         self._buttons = [self.btn_play, self.btn_stats, self.btn_settings, self.btn_quit]
 
@@ -52,6 +52,8 @@ class MainMenuScene:
     # ------------------------------------------------------------------
     def on_enter(self, **kwargs):
         self._refresh_texts()
+        self.player_name = get_player_name()
+        self.editing_name = False
 
     def _refresh_texts(self):
         self.btn_play.set_text(locale.get("menu.play"))
@@ -61,8 +63,27 @@ class MainMenuScene:
 
     # ------------------------------------------------------------------
     def handle_event(self, event: pygame.event.Event):
+        # Введення імені гравця з клавіатури
+        if self.editing_name:
+            if event.type == pygame.KEYDOWN:
+                if event.key in (pygame.K_RETURN, pygame.K_ESCAPE):
+                    self.editing_name = False
+                    self.player_name = set_player_name(self.player_name)
+                    audio.play("ui_click")
+                elif event.key == pygame.K_BACKSPACE:
+                    self.player_name = self.player_name[:-1]
+                else:
+                    if len(self.player_name) < 20 and event.unicode and event.unicode.isprintable():
+                        self.player_name += event.unicode
+                return
+            elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                if not self.player_name_rect.collidepoint(event.pos):
+                    self.editing_name = False
+                    self.player_name = set_player_name(self.player_name)
+
         if self.btn_play.handle_event(event):
-            self.manager.switch("cafe_hall", day=1, money=0, rating=3.0, upgrades={})
+            self.player_name = set_player_name(self.player_name)
+            self.manager.switch("cafe_hall", day=1, money=0, rating=3.0, upgrades={}, player_name=self.player_name)
 
         if self.btn_stats.handle_event(event):
             self.manager.switch("stats", back="main_menu")
@@ -73,13 +94,12 @@ class MainMenuScene:
         if self.btn_quit.handle_event(event):
             pygame.event.post(pygame.event.Event(pygame.QUIT))
 
-        # Язык
+        # Клік по картці імені гравця для редагування
         if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-            for code, label, r in self.lang_buttons:
-                if r.collidepoint(event.pos):
-                    audio.play("ui_click")
-                    locale.set_lang(code)
-                    self._refresh_texts()
+            if self.player_name_rect.collidepoint(event.pos):
+                audio.play("ui_click")
+                self.editing_name = True
+                return
 
     # ------------------------------------------------------------------
     def update(self, dt: float):
@@ -108,11 +128,44 @@ class MainMenuScene:
         for btn in self._buttons:
             btn.draw(surface)
 
-        # --- Языки ---
-        self._draw_lang_buttons(surface)
+        # --- Картка імені гравця (вгорі праворуч) ---
+        self._draw_player_card(surface)
 
         # --- Статус БД ---
         self._draw_db_status(surface)
+
+    def _draw_player_card(self, surface: pygame.Surface):
+        """Картка з ім'ям гравця для участі у таблиці рекордів"""
+        r = self.player_name_rect
+        mouse = pygame.mouse.get_pos()
+        hover = r.collidepoint(mouse)
+
+        bg = (255, 252, 246) if not self.editing_name else (255, 248, 220)
+        border = C.TERRACOTTA if (hover or self.editing_name) else C.SAGE_GRAY
+        pygame.draw.rect(surface, bg, r, border_radius=10)
+        pygame.draw.rect(surface, border, r, 2 if (hover or self.editing_name) else 1, border_radius=10)
+
+        paw = assets.image_by_height("ui_icon_paw", 18)
+        surface.blit(paw, (r.x + 10, r.y + 13))
+
+        f_lbl = assets.font_ui(11)
+        lbl_t = f_lbl.render("Ім'я в рейтингу:", True, C.DARK_SAGE)
+        surface.blit(lbl_t, (r.x + 36, r.y + 5))
+
+        # Ім'я
+        f_name = assets.font_ui(14, bold=True)
+        name_str = self.player_name
+        if self.editing_name and (int(self._t * 2.5) % 2 == 0):
+            name_str += "|"
+        name_col = C.TERRACOTTA if self.editing_name else C.TEXT_DARK
+        name_t = f_name.render(name_str, True, name_col)
+        surface.blit(name_t, (r.x + 36, r.y + 20))
+
+        # Підказка редагування
+        hint_str = "[Enter]" if self.editing_name else "[змінити]"
+        hint_t = f_lbl.render(hint_str, True, (160, 130, 110) if not hover else C.TERRACOTTA)
+        surface.blit(hint_t, (r.right - hint_t.get_width() - 10, r.y + 15))
+
 
     # ------------------------------------------------------------------
     # ------------------------------------------------------------------

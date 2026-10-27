@@ -9,7 +9,7 @@ from sqlalchemy import case, func, select
 
 from database import orm
 from database.models import (CafeTable, Employee, MenuCategory, MenuItem, MenuItemIngredient,
-                             Order, OrderItem, Product)
+                             Order, OrderItem, Product, CafeExpense, Player)
 from database.seed import add_demo_orders
 
 PAID = Order.status == "оплачено"
@@ -58,23 +58,38 @@ def top_dishes(limit: int = 10) -> list:
 #    + накопичувальна сума SUM() OVER (ORDER BY день)
 # ----------------------------------------------------------------
 def revenue_by_gameday() -> list:
-    """(день, оплачено, скасовано, виручка, середній чек, виручка наростаючим підсумком)"""
+    """(день, оплачено, виручка, витрати на закупівлю, чистий прибуток, наростаючим)"""
     per_order = (select(Order.id.label("oid"), Order.gameday.label("day"), Order.status.label("st"),
                         func.sum(LINE_SUM).label("total"))
                  .select_from(Order).join(OrderItem, OrderItem.orderid == Order.id)
                  .group_by(Order.id, Order.gameday, Order.status)
                  .subquery())
     is_paid = per_order.c.st == "оплачено"
-    revenue = func.sum(case((is_paid, per_order.c.total), else_=0))
-    stmt = (select(per_order.c.day,
-                   func.sum(case((is_paid, 1), else_=0)),
-                   func.sum(case((per_order.c.st == "скасовано", 1), else_=0)),
+    rev_sub = (select(per_order.c.day.label("day"),
+                      func.sum(case((is_paid, 1), else_=0)).label("paid_cnt"),
+                      func.sum(case((is_paid, per_order.c.total), else_=0)).label("revenue"))
+               .group_by(per_order.c.day)
+               .subquery())
+    exp_sub = (select(CafeExpense.gameday.label("day"),
+                      func.sum(CafeExpense.cost).label("expenses"))
+               .group_by(CafeExpense.gameday)
+               .subquery())
+
+    revenue = func.coalesce(rev_sub.c.revenue, 0)
+    expenses = func.coalesce(exp_sub.c.expenses, 0)
+    profit = revenue - expenses
+
+    stmt = (select(rev_sub.c.day,
+                   rev_sub.c.paid_cnt,
                    revenue,
-                   func.avg(case((is_paid, per_order.c.total))),
-                   func.sum(revenue).over(order_by=per_order.c.day))
-            .group_by(per_order.c.day)
-            .order_by(per_order.c.day))
+                   expenses,
+                   profit,
+                   func.sum(profit).over(order_by=rev_sub.c.day))
+            .select_from(rev_sub)
+            .outerjoin(exp_sub, exp_sub.c.day == rev_sub.c.day)
+            .order_by(rev_sub.c.day))
     return _run(stmt)
+
 
 
 # ----------------------------------------------------------------
@@ -212,3 +227,34 @@ def add_demo_data() -> int:
     """Додає демонстраційну історію замовлень (для показу статистики)"""
     with orm.session() as s:
         return add_demo_orders(s)
+
+
+# ----------------------------------------------------------------
+# 8. Найкращі гравці: RANK() OVER (ORDER BY total_money DESC)
+# ----------------------------------------------------------------
+def top_players(limit: int = 10) -> list:
+    """(місце, гравець, днів зіграно, виконано замовлень, зароблено монет, рейтинг)"""
+    stmt = (select(func.rank().over(order_by=Player.total_money.desc()),
+                   Player.name, Player.days_played, Player.orders_done,
+                   Player.total_money, Player.rating)
+            .select_from(Player)
+            .order_by(Player.total_money.desc(), Player.orders_done.desc())
+            .limit(limit))
+    return _run(stmt)
+
+
+# ----------------------------------------------------------------
+# 9. Витрати кафе на закупівлю продуктів (поставки машинки): JOIN + GROUP BY
+# ----------------------------------------------------------------
+def supply_expenses(limit: int = 15) -> list:
+    """(день, страва, замовлено одиниць, витрачено монет)"""
+    stmt = (select(CafeExpense.gameday, MenuItem.name,
+                   func.sum(CafeExpense.quantity),
+                   func.sum(CafeExpense.cost))
+            .select_from(CafeExpense)
+            .join(MenuItem, MenuItem.id == CafeExpense.menuitemid)
+            .group_by(CafeExpense.gameday, MenuItem.id, MenuItem.name)
+            .order_by(CafeExpense.gameday.desc(), func.sum(CafeExpense.cost).desc())
+            .limit(limit))
+    return _run(stmt)
+

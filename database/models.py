@@ -124,3 +124,31 @@ class OrderItem(Base):
 
     order: Mapped["Order"] = relationship(back_populates="items")
     menu_item: Mapped["MenuItem"] = relationship(back_populates="order_items")
+
+
+class CafeExpense(Base):
+    """Затрати кафе на закупівлю продуктів (поставки курьєром машинки)."""
+    __tablename__ = "cafe_expenses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    gameday: Mapped[int] = mapped_column(Integer, nullable=False)
+    menuitemid: Mapped[int] = mapped_column(ForeignKey("menuitems.id"), nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
+    cost: Mapped[float] = mapped_column(Money, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+
+    menu_item: Mapped["MenuItem"] = relationship()
+
+
+class Player(Base):
+    """Гравці кафе: імена та статистика кращих гравців для онлайн/локального рейтингу."""
+    __tablename__ = "players"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    total_money: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    days_played: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    orders_done: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    rating: Mapped[float] = mapped_column(Numeric(3, 2, asdecimal=False), nullable=False, default=3.0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+
