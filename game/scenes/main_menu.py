@@ -4,12 +4,14 @@
 import pygame
 import math
 import random
-from game.core.settings   import C, WIDTH, HEIGHT
+from game.core.settings   import C, WIDTH, HEIGHT, GAME_VERSION
 from game.core.assets     import assets
 from game.core.localization import locale
 from game.core.audio      import audio
 from game.core.profile    import get_player_name, set_player_name
+from game.core.updater    import updater, should_show_whats_new
 from game.ui.button       import Button
+from game.ui.whats_new_modal import WhatsNewModal
 
 
 class MainMenuScene:
@@ -20,9 +22,16 @@ class MainMenuScene:
         self._paws   = []       # декоративные следы лап
         self.player_name = get_player_name()
         self.editing_name = False
+        self.whats_new_modal = WhatsNewModal()
+        self.whats_new_btn_rect = pygame.Rect(WIDTH - 145, HEIGHT - 32, 133, 24)
+        cx = 880
+        self.update_banner_rect = pygame.Rect(cx - 165, 578, 330, 52)
 
         self._build_ui()
         self._build_decoration()
+
+        # Фоновий запуск перевірки нових версій гри
+        updater.check_async()
 
     # ------------------------------------------------------------------
     def _build_ui(self):
@@ -55,6 +64,10 @@ class MainMenuScene:
         self.player_name = get_player_name()
         self.editing_name = False
 
+        # Якщо щойно оновили гру — автоматично показуємо новини оновлення!
+        if should_show_whats_new():
+            self.whats_new_modal.open("whats_new")
+
     def _refresh_texts(self):
         self.btn_play.set_text(locale.get("menu.play"))
         self.btn_stats.set_text(locale.get("menu.stats"))
@@ -63,6 +76,11 @@ class MainMenuScene:
 
     # ------------------------------------------------------------------
     def handle_event(self, event: pygame.event.Event):
+        # Якщо відкрите модальне вікно новин / оновлення версії
+        if self.whats_new_modal.is_open:
+            if self.whats_new_modal.handle_event(event):
+                return
+
         # Введення імені гравця з клавіатури
         if self.editing_name:
             if event.type == pygame.KEYDOWN:
@@ -101,9 +119,22 @@ class MainMenuScene:
                 self.editing_name = True
                 return
 
+            # Клік по кнопці «Що нового?» у правому нижньому кутку
+            if self.whats_new_btn_rect.collidepoint(event.pos):
+                audio.play("ui_click")
+                self.whats_new_modal.open("whats_new")
+                return
+
+            # Клік по банеру доступного оновлення
+            if updater.has_update and self.update_banner_rect.collidepoint(event.pos):
+                audio.play("cash_register")
+                self.whats_new_modal.open("update_available")
+                return
+
     # ------------------------------------------------------------------
     def update(self, dt: float):
         self._t += dt
+        self.whats_new_modal.update(dt)
         for btn in self._buttons:
             btn.update(dt)
         for cat in self._cats:
@@ -128,11 +159,20 @@ class MainMenuScene:
         for btn in self._buttons:
             btn.draw(surface)
 
+        # --- Банер доступного оновлення гри ---
+        if updater.has_update:
+            self._draw_update_banner(surface)
+
         # --- Картка імені гравця (вгорі праворуч) ---
         self._draw_player_card(surface)
 
-        # --- Статус БД ---
+        # --- Статус БД та версія гри / новини ---
         self._draw_db_status(surface)
+        self._draw_version_info(surface)
+
+        # --- Модальне вікно «Що нового» / «Доступне оновлення» ---
+        if self.whats_new_modal.is_open:
+            self.whats_new_modal.draw(surface)
 
     def _draw_player_card(self, surface: pygame.Surface):
         """Картка з ім'ям гравця для участі у таблиці рекордів"""
@@ -308,3 +348,56 @@ class MainMenuScene:
         f = assets.font_ui(13)
         t = f.render(loc.get(key), True, C.SAGE_GRAY)
         surface.blit(t, (12, HEIGHT - 24))
+
+    def _draw_update_banner(self, surface: pygame.Surface):
+        """Анімований банер-нагадування про доступне оновлення гри."""
+        r = self.update_banner_rect
+        mouse = pygame.mouse.get_pos()
+        hover = r.collidepoint(mouse)
+
+        # М'яка пульсація рамки для привернення уваги
+        pulse = math.sin(self._t * 4.0) * 0.15 + 0.85
+        bg_col = (255, 245, 225) if not hover else (255, 238, 205)
+        border_col = (235, 130, 30) if hover else (int(220 * pulse), int(120 * pulse), int(30 * pulse))
+
+        # Тінь
+        pygame.draw.rect(surface, (0, 0, 0, 35), (r.x + 3, r.y + 4, r.width, r.height), border_radius=12)
+        pygame.draw.rect(surface, bg_col, r, border_radius=12)
+        pygame.draw.rect(surface, border_col, r, 2, border_radius=12)
+
+        # Зірочка / подарунок зліва
+        star_icon = assets.image_by_height("ui_icon_star", 22)
+        bob = int(math.sin(self._t * 5.0) * 2)
+        surface.blit(star_icon, (r.x + 12, r.y + 15 + bob))
+
+        # Текст
+        f_top = assets.font_ui(13, bold=True)
+        f_sub = assets.font_ui(11)
+        v_str = updater.latest_version or "нова версія"
+        txt_top = f_top.render(f"✨ Доступне оновлення {v_str}!", True, C.TERRACOTTA)
+        surface.blit(txt_top, (r.x + 42, r.y + 8))
+
+        txt_sub = f_sub.render("Натисніть, щоб переглянути та завантажити ⬇️", True, (140, 80, 20) if hover else C.DARK_SAGE)
+        surface.blit(txt_sub, (r.x + 42, r.y + 28))
+
+    def _draw_version_info(self, surface: pygame.Surface):
+        """Версія гри та компактна кнопка «Що нового?» у правому нижньому кутку."""
+        # 1. Текст поточної версії
+        f_ver = assets.font_ui(12)
+        ver_t = f_ver.render(f"MiniCafe {GAME_VERSION}", True, (185, 165, 150))
+        surface.blit(ver_t, (self.whats_new_btn_rect.x - ver_t.get_width() - 12, HEIGHT - 27))
+
+        # 2. Кнопка «✨ Що нового?»
+        r = self.whats_new_btn_rect
+        mouse = pygame.mouse.get_pos()
+        hover = r.collidepoint(mouse)
+
+        bg = (255, 246, 238) if hover else (255, 252, 248)
+        border = C.TERRACOTTA if hover else C.SAGE_GRAY
+        pygame.draw.rect(surface, bg, r, border_radius=8)
+        pygame.draw.rect(surface, border, r, 1, border_radius=8)
+
+        f_btn = assets.font_ui(11, bold=True)
+        txt_col = C.TERRACOTTA if hover else C.DARK_SAGE
+        btn_t = f_btn.render("✨ Що нового?", True, txt_col)
+        surface.blit(btn_t, btn_t.get_rect(center=r.center))

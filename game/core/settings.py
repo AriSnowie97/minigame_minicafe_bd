@@ -7,6 +7,8 @@ WIDTH  = 1280
 HEIGHT = 720
 FPS    = 60
 TITLE  = "MiniCafe 🐱☕"
+GAME_VERSION = "v1.1.0"
+GITHUB_REPO  = "AriSnowie97/minigame_minicafe_bd"
 
 # --- Макет кімнати та ізометричні координати (відповідність мокапу 100%) ---
 ROOM_SIZE = 750
