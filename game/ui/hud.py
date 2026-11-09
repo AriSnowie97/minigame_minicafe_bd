@@ -84,7 +84,8 @@ class HUD:
         if fill_rect.width > 0:
             pygame.draw.rect(surface, bar_color, fill_rect, border_radius=8)
         pygame.draw.rect(surface, C.DARK_SAGE, bg_rect, 2, border_radius=8)
-        time_label = assets.render_outlined(f_label, locale.get("hud.time"), (245, 230, 220), (35, 40, 32), 1)
+        time_text = "Навчання" if day == 0 else locale.get("hud.time")
+        time_label = assets.render_outlined(f_label, time_text, (245, 230, 220), (35, 40, 32), 1)
         surface.blit(time_label, (bar_x, 5))
 
         # --- Замовлення ---

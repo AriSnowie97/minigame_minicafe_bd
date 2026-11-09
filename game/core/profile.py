@@ -58,3 +58,16 @@ def set_last_seen_version(version: str):
     data = _load_profile()
     data["last_seen_version"] = (version or "").strip()
     _save_profile(data)
+
+
+def is_tutorial_completed() -> bool:
+    """Чи пройшов гравець навчальний День 0."""
+    data = _load_profile()
+    return bool(data.get("tutorial_completed", False))
+
+
+def set_tutorial_completed(completed: bool = True):
+    """Зберегти статус проходження навчання (Дня 0)."""
+    data = _load_profile()
+    data["tutorial_completed"] = bool(completed)
+    _save_profile(data)

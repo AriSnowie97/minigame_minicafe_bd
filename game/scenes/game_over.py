@@ -34,10 +34,10 @@ class GameOverScene:
                                "Магазин", font_size=20)
         self.btn_stats = Button(pygame.Rect(cx + 10, 485, 180, 44),
                                 locale.get("menu.stats"), font_size=20)
-        self.btn_next = Button(pygame.Rect(cx - 190, 545, 180, 48),
-                               locale.get("game_over.next_day"), font_size=20)
-        self.btn_menu = Button(pygame.Rect(cx + 10,  545, 180, 48),
+        self.btn_menu = Button(pygame.Rect(cx - 190, 545, 180, 48),
                                locale.get("game_over.main_menu"), font_size=20)
+        self.btn_next = Button(pygame.Rect(cx + 10,  545, 180, 48),
+                               locale.get("game_over.next_day"), font_size=20)
         self._coins_anim = 0.0
         self.shop_modal = ShopModal()
 
@@ -58,7 +58,10 @@ class GameOverScene:
         self._coins_anim = 0.0
         self.shop_modal.close()
         self.btn_stats.set_text(locale.get("menu.stats"))
-        self.btn_next.set_text(locale.get("game_over.restart" if failed else "game_over.next_day"))
+        if self.day == 0:
+            self.btn_next.set_text("Розпочати День 1")
+        else:
+            self.btn_next.set_text(locale.get("game_over.restart" if failed else "game_over.next_day"))
         self.btn_menu.set_text(locale.get("game_over.main_menu"))
 
         # Звук итогов: победный короткий джингл или грустный сигнал
@@ -98,8 +101,9 @@ class GameOverScene:
                 # Провал: гра починається з нуля
                 self.manager.switch("cafe_hall", day=1, money=0, rating=3.0, upgrades={}, player_name=self.player_name)
             else:
+                next_d = 1 if self.day == 0 else (self.day + 1)
                 self.manager.switch("cafe_hall",
-                                    day=self.day + 1,
+                                    day=next_d,
                                     money=self.money,
                                     rating=self.rating,
                                     upgrades=self.upgrades,
@@ -159,7 +163,8 @@ class GameOverScene:
 
         # 5. День
         f_ui = assets.font_ui(20)
-        day_t = f_ui.render(f"{locale.get('hud.day')} {self.day}", True, C.CREAM)
+        day_str = "Навчання завершено! :3" if self.day == 0 else f"{locale.get('hud.day')} {self.day}"
+        day_t = f_ui.render(day_str, True, C.CREAM)
         surface.blit(day_t, day_t.get_rect(center=(cx, panel_y + 90)))
 
         # 6. Звёзды рейтинга
@@ -205,18 +210,66 @@ class GameOverScene:
             reason_t = assets.render_outlined(f_reason, locale.get(self.fail_reason), (255, 215, 200), (60, 30, 25), 1)
             surface.blit(reason_t, reason_t.get_rect(center=(cx, panel_y + 160)))
 
-        # 8. Кнопки
+        # 8. Фігура помічниці Арі ліворуч від панелі
+        self._draw_ari(surface, panel_x - 160, 680)
+
+        # 9. Кнопки
         if not self.failed:
             self.btn_shop.draw(surface)
         self.btn_stats.draw(surface)
         self.btn_next.draw(surface)
         self.btn_menu.draw(surface)
 
-        # 9. Счастливый котик над карточкой
+        # 10. Счастливый котик над карточкой
         self._draw_happy_cat(surface, cx, panel_y - 25)
 
-        # 10. Модальне вікно магазину (якщо відкрите)
+        # 11. Модальне вікно магазину (якщо відкрите)
         self.shop_modal.draw(surface, self.money, self.upgrades, self.stock)
+
+    def _draw_ari(self, surface: pygame.Surface, x: int, y: int):
+        """Відображення наставниці Арі з відповідною емоцією та реплікою."""
+        ari_name = "sad_ari" if self.failed else ("happy_ari" if self.day == 0 else "wink_ari")
+        ari_spr = assets.image(ari_name)
+        if not ari_spr or getattr(ari_spr, "_is_placeholder", False):
+            return
+
+        aw, ah = ari_spr.get_size()
+        target_h = 370
+        target_w = max(1, int(aw * (target_h / max(1, ah))))
+        ari_scaled = pygame.transform.smoothscale(ari_spr, (target_w, target_h))
+        bob = int(math.sin(self._t * 3.0) * 3)
+
+        # Тінь
+        sh_surf = pygame.Surface((130, 24), pygame.SRCALPHA)
+        pygame.draw.ellipse(sh_surf, (0, 0, 0, 50), (0, 0, 130, 24))
+        surface.blit(sh_surf, sh_surf.get_rect(center=(x, y - 4 + bob)))
+
+        # Арі
+        r_ari = ari_scaled.get_rect(midbottom=(x, y + bob))
+        surface.blit(ari_scaled, r_ari)
+
+        # Хмаринка репліки
+        if self.day == 0:
+            speech = "Чудова робота! Ви освоїли гру :3"
+        elif self.failed:
+            speech = "Не хвилюйтесь! Завтра все вийде!"
+        else:
+            speech = "Мурр! Чудовий робочий день! :3"
+
+        f_bub = assets.font_ui(12, bold=True)
+        txt_b = f_bub.render(speech, True, C.TEXT_DARK)
+        bw = txt_b.get_width() + 20
+        bh = 32
+        bx = max(10, x - bw // 2)
+        by = r_ari.top - 38
+        b_r = pygame.Rect(bx, by, bw, bh)
+        pygame.draw.rect(surface, (255, 255, 255), b_r, border_radius=8)
+        pygame.draw.rect(surface, C.TERRACOTTA, b_r, 1, border_radius=8)
+        # Хвостик
+        tail_x = min(max(bx + 10, x), bx + bw - 10)
+        pygame.draw.polygon(surface, (255, 255, 255), [(tail_x - 6, by + bh), (tail_x + 6, by + bh), (tail_x, by + bh + 6)])
+        pygame.draw.polygon(surface, C.TERRACOTTA, [(tail_x - 6, by + bh), (tail_x + 6, by + bh), (tail_x, by + bh + 6)], 1)
+        surface.blit(txt_b, txt_b.get_rect(center=b_r.center))
 
     def _draw_happy_cat(self, surface, x, y):
         bob = int(math.sin(self._t * 2) * 3)

@@ -35,11 +35,11 @@ class CatCook:
     STATE_HAPPY = "happy"
 
     QUOTES = [
-        "Мяу! На кухні все під контролем! 🍳",
+        "Мяу! На кухні все під контролем! :3",
         "Люблю готувати смачненьке для котиків :3",
-        "Замовлення смажиться на плиті! ✨",
-        "Свіжі інгредієнти — запорука успіху! 🐟",
-        "Зараз зробимо найапетитніший десерт! 🍰",
+        "Замовлення смажиться на плиті! :3",
+        "Свіжі інгредієнти — запорука успіху!",
+        "Зараз зробимо найапетитніший десерт! :3",
     ]
 
     def __init__(self, pos_2048: tuple = (1060, 1240)):
@@ -75,7 +75,7 @@ class CatCook:
         """Викликається коли замовлення щойно приготувалося"""
         self.happy_timer = 3.0
         self.state = self.STATE_HAPPY
-        self.say(random.choice(["Дінь! Готово! Смачного! :3", "Мур! Замовлення на столі видачі! ✨"]), duration=2.8)
+        self.say(random.choice(["Дінь! Готово! Смачного! :3", "Мур! Замовлення на столі видачі! :3"]), duration=2.8)
 
     def say(self, text: str, duration: float = 2.5):
         self.dialogue_text = text
@@ -125,7 +125,7 @@ class CatCook:
             tx, ty = STATIONS[DISH_STATION.get(self._cur_dish, "stove")]
             if self._walk_to(tx, ty, dt) and self._announce:
                 self._announce = False
-                self.say(DISH_TEXT.get(self._cur_dish, "Готую смачненьке! 🍳"), duration=3.4)
+                self.say(DISH_TEXT.get(self._cur_dish, "Готую смачненьке! :3"), duration=3.4)
         else:
             self._cur_dish = None
             self._announce = False

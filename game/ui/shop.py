@@ -512,7 +512,7 @@ class ShopModal:
             elif not is_menu_tab and is_unlocked:
                 pygame.draw.rect(surface, (225, 245, 225), btn_r, border_radius=8)
                 pygame.draw.rect(surface, C.PATIENCE_GOOD, btn_r, 1, border_radius=8)
-                txt = assets.render_outlined(f_btn, "Куплено ✓", C.PATIENCE_GOOD, (240, 255, 240), 1)
+                txt = assets.render_outlined(f_btn, "Куплено", C.PATIENCE_GOOD, (240, 255, 240), 1)
                 surface.blit(txt, txt.get_rect(center=btn_r.center))
 
             # 3. Вимагає іншого покращення

@@ -8,7 +8,7 @@ from game.core.settings   import C, WIDTH, HEIGHT, GAME_VERSION
 from game.core.assets     import assets
 from game.core.localization import locale
 from game.core.audio      import audio
-from game.core.profile    import get_player_name, set_player_name
+from game.core.profile    import get_player_name, set_player_name, is_tutorial_completed
 from game.core.updater    import updater, should_show_whats_new
 from game.ui.button       import Button
 from game.ui.whats_new_modal import WhatsNewModal
@@ -36,16 +36,17 @@ class MainMenuScene:
     # ------------------------------------------------------------------
     def _build_ui(self):
         cx = 880
-        self.btn_play     = Button(pygame.Rect(cx - 150, 260, 300, 64), locale.get("menu.play"),     font_size=30)
-        self.btn_stats    = Button(pygame.Rect(cx - 150, 345, 300, 60), locale.get("menu.stats"),    font_size=26)
-        self.btn_settings = Button(pygame.Rect(cx - 150, 425, 300, 60), locale.get("menu.settings"), font_size=26)
-        self.btn_quit     = Button(pygame.Rect(cx - 150, 505, 300, 60), locale.get("menu.quit"),     font_size=26)
+        self.btn_play     = Button(pygame.Rect(cx - 150, 245, 300, 56), locale.get("menu.play"),     font_size=28)
+        self.btn_tutorial = Button(pygame.Rect(cx - 150, 312, 300, 50), "Навчання з Арі (День 0)",   font_size=21)
+        self.btn_stats    = Button(pygame.Rect(cx - 150, 374, 300, 50), locale.get("menu.stats"),    font_size=22)
+        self.btn_settings = Button(pygame.Rect(cx - 150, 436, 300, 50), locale.get("menu.settings"), font_size=22)
+        self.btn_quit     = Button(pygame.Rect(cx - 150, 498, 300, 50), locale.get("menu.quit"),     font_size=22)
 
         # Картка імені гравця (для рейтингу) у правому верхньому кутку замість кнопок мов
         self.player_name_rect = pygame.Rect(WIDTH - 295, 18, 275, 46)
         self.lang_buttons = []
 
-        self._buttons = [self.btn_play, self.btn_stats, self.btn_settings, self.btn_quit]
+        self._buttons = [self.btn_play, self.btn_tutorial, self.btn_stats, self.btn_settings, self.btn_quit]
 
     def _build_decoration(self):
         # Случайные следы лап
@@ -101,7 +102,12 @@ class MainMenuScene:
 
         if self.btn_play.handle_event(event):
             self.player_name = set_player_name(self.player_name)
-            self.manager.switch("cafe_hall", day=1, money=0, rating=3.0, upgrades={}, player_name=self.player_name)
+            target_day = 0 if not is_tutorial_completed() else 1
+            self.manager.switch("cafe_hall", day=target_day, money=0, rating=3.0, upgrades={}, player_name=self.player_name)
+
+        if self.btn_tutorial.handle_event(event):
+            self.player_name = set_player_name(self.player_name)
+            self.manager.switch("cafe_hall", day=0, money=0, rating=5.0, upgrades={}, player_name=self.player_name)
 
         if self.btn_stats.handle_event(event):
             self.manager.switch("stats", back="main_menu")
@@ -126,7 +132,7 @@ class MainMenuScene:
                 return
 
             # Клік по банеру доступного оновлення
-            if updater.has_update and self.update_banner_rect.collidepoint(event.pos):
+            if (updater.has_update or updater.download_state in ("downloading", "completed")) and self.update_banner_rect.collidepoint(event.pos):
                 audio.play("cash_register")
                 self.whats_new_modal.open("update_available")
                 return
@@ -160,7 +166,7 @@ class MainMenuScene:
             btn.draw(surface)
 
         # --- Банер доступного оновлення гри ---
-        if updater.has_update:
+        if updater.has_update or updater.download_state in ("downloading", "completed"):
             self._draw_update_banner(surface)
 
         # --- Картка імені гравця (вгорі праворуч) ---
@@ -373,11 +379,23 @@ class MainMenuScene:
         # Текст
         f_top = assets.font_ui(13, bold=True)
         f_sub = assets.font_ui(11)
-        v_str = updater.latest_version or "нова версія"
-        txt_top = f_top.render(f"✨ Доступне оновлення {v_str}!", True, C.TERRACOTTA)
-        surface.blit(txt_top, (r.x + 42, r.y + 8))
+        v_str = updater.latest_version or "нової версії"
 
-        txt_sub = f_sub.render("Натисніть, щоб переглянути та завантажити ⬇️", True, (140, 80, 20) if hover else C.DARK_SAGE)
+        if updater.download_state == "downloading":
+            pct = int(updater.download_progress * 100)
+            txt_top = f_top.render(f"Завантаження {v_str}: {pct}%", True, (50, 140, 70))
+            txt_sub = f_sub.render(f"{updater.downloaded_mb:.1f} / {updater.total_mb:.1f} МБ ({updater.speed_str})", True, C.DARK_SAGE)
+        elif updater.download_state == "completed":
+            txt_top = f_top.render("Оновлення завантажено!", True, (40, 150, 60))
+            txt_sub = f_sub.render("Натисніть для перезапуску гри >>", True, (30, 120, 50))
+        elif updater.download_state == "error":
+            txt_top = f_top.render("Помилка завантаження", True, (190, 50, 40))
+            txt_sub = f_sub.render("Натисніть для деталей", True, C.DARK_SAGE)
+        else:
+            txt_top = f_top.render(f"Доступне оновлення {v_str}!", True, C.TERRACOTTA)
+            txt_sub = f_sub.render("Натисніть, щоб переглянути та оновити", True, (140, 80, 20) if hover else C.DARK_SAGE)
+
+        surface.blit(txt_top, (r.x + 42, r.y + 8))
         surface.blit(txt_sub, (r.x + 42, r.y + 28))
 
     def _draw_version_info(self, surface: pygame.Surface):
@@ -387,7 +405,7 @@ class MainMenuScene:
         ver_t = f_ver.render(f"MiniCafe {GAME_VERSION}", True, (185, 165, 150))
         surface.blit(ver_t, (self.whats_new_btn_rect.x - ver_t.get_width() - 12, HEIGHT - 27))
 
-        # 2. Кнопка «✨ Що нового?»
+        # 2. Кнопка «Що нового?» з іконкою зірочки
         r = self.whats_new_btn_rect
         mouse = pygame.mouse.get_pos()
         hover = r.collidepoint(mouse)
@@ -399,5 +417,9 @@ class MainMenuScene:
 
         f_btn = assets.font_ui(11, bold=True)
         txt_col = C.TERRACOTTA if hover else C.DARK_SAGE
-        btn_t = f_btn.render("✨ Що нового?", True, txt_col)
-        surface.blit(btn_t, btn_t.get_rect(center=r.center))
+        btn_t = f_btn.render("Що нового?", True, txt_col)
+        star_ico = assets.image_by_height("ui_icon_star", 13)
+        tot_w = btn_t.get_width() + 6 + star_ico.get_width()
+        sx = r.centerx - tot_w // 2
+        surface.blit(star_ico, (sx, r.centery - star_ico.get_height() // 2))
+        surface.blit(btn_t, (sx + star_ico.get_width() + 6, r.centery - btn_t.get_height() // 2))

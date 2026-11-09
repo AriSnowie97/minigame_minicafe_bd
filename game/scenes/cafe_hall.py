@@ -21,6 +21,7 @@ from game.entities.waiter   import Waiter, WaiterState
 from game.entities.cook     import CatCook
 from game.ui.hud            import HUD
 from game.ui.shop           import ShopModal
+from game.ui.tutorial_overlay import TutorialOverlay
 from game.core.progression  import get_day_config
 from game.entities.delivery import DeliveryManager
 from game.core.profile      import get_player_name
@@ -136,6 +137,7 @@ class CafeHallScene:
         # Оновлення кафе та магазин
         self.upgrades     = {}
         self.shop_modal   = ShopModal()
+        self.tutorial_overlay = TutorialOverlay(self)
         self.day_cfg      = get_day_config(1, self.upgrades)
         self.delivery_manager = DeliveryManager(self)
 
@@ -333,12 +335,23 @@ class CafeHallScene:
         self.day = day
         self.player_name = kwargs.get("player_name", getattr(self, "player_name", get_player_name()))
 
+        # День 0: Інтерактивне навчання
+        if self.day <= 0:
+            self.day = 0
+            self.money = 0
+            self.rating = 5.0
+            self.upgrades = {}
+            self.time_left = 999.0
+            self._spawn_timer = 0.5
+            self.tutorial_overlay.reset()
         # Повне скидання при старті 1 дня: кухня закрита, тераса закрита, офіціантів немає —
         # як і на початку гри, тільки гравець і бариста!
-        if self.day == 1:
+        elif self.day == 1:
             self.money = 0
             self.rating = 3.0
             self.upgrades = {}
+            self.time_left = float(DAY_DURATION)
+            self._spawn_timer = 2.0
         else:
             self.money = money
             self.rating = rating
@@ -346,6 +359,8 @@ class CafeHallScene:
                 self.upgrades = upgrades
             elif not hasattr(self, 'upgrades') or self.upgrades is None:
                 self.upgrades = {}
+            self.time_left = float(DAY_DURATION)
+            self._spawn_timer = 2.0
 
         self.orders_done = 0
         self.orders_bad  = 0
@@ -387,7 +402,7 @@ class CafeHallScene:
         stock_kw = kwargs.get("stock")
         if stock_kw is not None:
             self.stock = dict(stock_kw)
-        elif self.day == 1 or not self.stock:
+        elif self.day in (0, 1) or not self.stock:
             self.stock = {it["id"]: 20 for it in self._menu_items} if self._menu_items else {i: 20 for i in range(1, 16)}
         for it in (self._menu_items or []):
             self.stock.setdefault(it["id"], 20)
@@ -428,7 +443,7 @@ class CafeHallScene:
         # Спеціальна порада на 2-му тижні (котики замовляють по 2 страви)
         if self.day >= 8 and not self.upgrades.get("waiter", False):
             self.notifications.append(
-                Notification("🐱 2-й тиждень! Гості замовляють по 2 страви! Рекомендуємо взяти офіціанта :3", C.TERRACOTTA, 4.2)
+                Notification("2-й тиждень! Гості замовляють по 2 страви! Рекомендуємо взяти офіціанта :3", C.TERRACOTTA, 4.2)
             )
 
     # ------------------------------------------------------------------
@@ -466,7 +481,7 @@ class CafeHallScene:
                             )
                         elif upgrade_id == "terrace":
                             self.notifications.append(
-                                Notification("Літню терасу відкрито! Перемикайтесь кнопкою 'Тераса' вгорі! 🌿", C.NOTIF_GOOD, 3.5)
+                                Notification("Літню терасу відкрито! Перемикайтесь кнопкою 'Тераса' вгорі! :3", C.NOTIF_GOOD, 3.5)
                             )
                         else:
                             self.notifications.append(
@@ -508,6 +523,10 @@ class CafeHallScene:
 
         if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             mx, my = event.pos
+
+            # 1.1 Клік по навчальному оверлею (День 0: пропуск або завершення)
+            if self.day == 0 and self.tutorial_overlay.handle_click((mx, my)):
+                return
 
             # 2. Клік по кнопці Магазину в HUD
             if hasattr(self.hud, 'shop_rect') and self.hud.shop_rect and self.hud.shop_rect.collidepoint(mx, my):
@@ -960,19 +979,30 @@ class CafeHallScene:
                 )
             return
 
-        tbl = random.choice(free)
-        # Пасхалка: рідкісний фіолетовий VIP-котик з короною (одночасно не більше одного)
-        vip = (len(pool) >= 4 and self.day >= 2 and random.random() < VIP_CHANCE
-               and not any(getattr(c, "is_vip", False) for c in self.customers))
-        if vip:
-            order_items = random.sample(pool, 4)
-        elif len(pool) > 1 and random.random() < self.day_cfg["two_items_chance"]:
-            order_items = random.sample(pool, 2)
+        if self.day == 0:
+            tbl3 = next((t for t in free if t.table_number == 3), None)
+            if tbl3:
+                tbl = tbl3
+            else:
+                return
+            order_items = [pool[0]]
+            vip = False
+            patience = 9999.0
         else:
-            order_items = [random.choice(pool)]
+            tbl = random.choice(free)
+            # Пасхалка: рідкісний фіолетовий VIP-котик з короною (одночасно не більше одного)
+            vip = (len(pool) >= 4 and self.day >= 2 and random.random() < VIP_CHANCE
+                   and not any(getattr(c, "is_vip", False) for c in self.customers))
+            if vip:
+                order_items = random.sample(pool, 4)
+            elif len(pool) > 1 and random.random() < self.day_cfg["two_items_chance"]:
+                order_items = random.sample(pool, 2)
+            else:
+                order_items = [random.choice(pool)]
+            patience = float(self.day_cfg["patience"]) * (1.25 if vip else 1.0)
 
         cust = Customer(tbl, order_items[0], None, None,
-                        max_patience=float(self.day_cfg["patience"]) * (1.25 if vip else 1.0),
+                        max_patience=patience,
                         order_items=order_items, vip=vip)
         tbl.customer = cust
         tbl.waiter_order = False
@@ -1136,7 +1166,12 @@ class CafeHallScene:
             self.camera_x = self.target_camera_x
             self.current_room = self.target_room
 
-        self.time_left = max(0.0, self.time_left - dt)
+        # Навчальний День 0: таймер не спливає до виконання кроків навчання
+        if self.day == 0:
+            self.time_left = 999.0
+            self.tutorial_overlay.update(dt)
+        else:
+            self.time_left = max(0.0, self.time_left - dt)
 
         # Атмосфера комнат следует за камерой
         self._update_ambience_mix()
@@ -1303,11 +1338,10 @@ class CafeHallScene:
                 self._draw_cooking_station(surface, offset_x=dx)
                 self._draw_counter_pickup_station(surface, offset_x=dx)
 
-                # Машинка доставки та котик-кур'єр у залі
+                # Машинка доставки на вулиці
                 self.delivery_manager.draw_van(surface, offset_x=dx)
-                self.delivery_manager.draw_courier(surface, "hall", offset_x=dx)
 
-                # Сортування по глибині (Y): столики залу 1..4, клієнти, офіціант
+                # Сортування по глибині (Y): столики залу 1..4, клієнти, офіціант, кур'єр доставки
                 draw_list = []
                 for tbl in hall_tables:
                     draw_list.append((tbl.screen_y, lambda s, t=tbl: t.draw(s, offset_x=dx)))
@@ -1319,6 +1353,14 @@ class CafeHallScene:
 
                 for w in self._waiters_in("hall"):
                     draw_list.append((w.y, lambda s, w=w: w.draw(s, offset_x=dx)))
+
+                # Котик-кур'єр сортується за глибиною Y — не потрапляє під текстури меблів
+                if self.delivery_manager.courier_room == "hall" and self.delivery_manager.state in (
+                    self.delivery_manager.STATE_COURIER_DELIVER,
+                    self.delivery_manager.STATE_COURIER_HANDOFF,
+                    self.delivery_manager.STATE_COURIER_RETURN
+                ):
+                    draw_list.append((self.delivery_manager.courier_y, lambda s: self.delivery_manager.draw_courier(s, "hall", offset_x=dx)))
 
                 draw_list.sort(key=lambda item: item[0])
                 for _, draw_fn in draw_list:
@@ -1393,6 +1435,10 @@ class CafeHallScene:
         # 6. Модальне вікно магазину (якщо відкрите)
         if self.shop_modal.is_open:
             self.shop_modal.draw(surface, self.money, self.upgrades, self.stock)
+
+        # 7. Інтерактивний оверлей навчання (День 0)
+        if self.day == 0:
+            self.tutorial_overlay.draw(surface, offset_x=0)
 
     # ------------------------------------------------------------------
     def _draw_hall_passages(self, surface: pygame.Surface, offset_x: int = 0):
@@ -1771,7 +1817,7 @@ class CafeHallScene:
 
         is_terrace_table = tbl.table_number in (5, 6, 7, 8)
         if is_terrace_table and self.target_room != "terrace":
-            guide_text = f"Несіть ({food_names}) до столика №{tbl.table_number}! Перейдіть на терасу ➡"
+            guide_text = f"Несіть ({food_names}) до столика №{tbl.table_number}! Перейдіть на терасу ->"
         elif not is_terrace_table and self.target_room != "hall":
             guide_text = f"Несіть ({food_names}) до столика №{tbl.table_number}! Перейдіть до залу ⬅"
         else:

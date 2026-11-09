@@ -13,7 +13,9 @@ def get_day_config(day: int, upgrades: Dict[str, Any] = None) -> Dict[str, Any]:
     has_doormat = upgrades.get("doormat", False)
 
     # 1. Максимальна кількість гостей одночасно
-    if day == 1:
+    if day <= 0:
+        base_max_cust = 1
+    elif day == 1:
         base_max_cust = 2
     elif day == 2:
         base_max_cust = 3
@@ -28,7 +30,10 @@ def get_day_config(day: int, upgrades: Dict[str, Any] = None) -> Dict[str, Any]:
     max_customers = base_max_cust
 
     # 2. Інтервал появи нових клієнтів (секунд)
-    if day == 1:
+    if day <= 0:
+        spawn_interval = 999.0
+        day_title = "День 0: Навчання (Перші кроки)"
+    elif day == 1:
         spawn_interval = 12.0
         day_title = "День 1: Затишний старт"
     elif day == 2:

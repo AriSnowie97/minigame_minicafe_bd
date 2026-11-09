@@ -18,22 +18,32 @@ if (Test-Path "embedded.env") {
     New-Item $embedded -ItemType File -Force | Out-Null
 }
 
-# Find available Python executable (prioritizing real python binary over WindowsApp store aliases)
+# Find available Python executable that has PyInstaller installed
 $pyCandidates = @(
-    "$env:LOCALAPPDATA\Programs\Python\Python313\python.exe",
-    "$env:LOCALAPPDATA\Programs\Python\Launcher\py.exe"
+    "$env:LOCALAPPDATA\Python\pythoncore-3.14-64\python.exe",
+    "$env:LOCALAPPDATA\Programs\Python\Launcher\py.exe",
+    "py",
+    "python",
+    "$env:LOCALAPPDATA\Programs\Python\Python313\python.exe"
 )
 $py = $null
 foreach ($cand in $pyCandidates) {
+    $resolved = $null
     if (Test-Path $cand) {
-        $py = $cand
-        break
+        $resolved = $cand
+    } elseif (Get-Command $cand -ErrorAction SilentlyContinue) {
+        $resolved = $cand
+    }
+    if ($resolved) {
+        & $resolved -m PyInstaller --version 2>$null | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            $py = $resolved
+            break
+        }
     }
 }
 if (-not $py) {
-    if (Get-Command py -ErrorAction SilentlyContinue) { $py = "py" }
-    elseif (Get-Command python -ErrorAction SilentlyContinue) { $py = "python" }
-    else { throw "Python not found!" }
+    throw "Python with PyInstaller not found!"
 }
 
 Write-Host "Using Python: $py"

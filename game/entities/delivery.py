@@ -151,20 +151,12 @@ class DeliveryManager:
                     self.courier_x = tx
                     self.courier_y = ty
                     self.waypoint_idx += 1
-
-                    # Перевіряємо, чи це був перехід через двері на кухню
-                    if self.current and self.current.is_chef and self.courier_room == "hall" and self.waypoint_idx >= 3:
-                        self.courier_room = "kitchen"
-                        self.courier_x = 830.0
-                        self.courier_y = 520.0
-                        self.waypoints = [(640.0, 604.0)]
-                        self.waypoint_idx = 0
                 else:
                     ang = math.atan2(dy, dx)
                     self.courier_x += math.cos(ang) * step
                     self.courier_y += math.sin(ang) * step
             else:
-                # Дійшли до стійки або кухні — передача товару
+                # Дійшли до вхідних дверей — передача товару
                 self.state = self.STATE_COURIER_HANDOFF
                 self.state_time = 0.0
                 audio.play("plate_place")
@@ -172,7 +164,7 @@ class DeliveryManager:
                 self._on_delivered()
 
         # -------------------------------------------------------------
-        # 3. Передача товару (котик радіє з руками в боки / візком)
+        # 3. Передача товару (котик радіє біля дверей)
         # -------------------------------------------------------------
         elif self.state == self.STATE_COURIER_HANDOFF:
             if self.state_time > 1.35:
@@ -199,20 +191,6 @@ class DeliveryManager:
                     self.courier_x = tx
                     self.courier_y = ty
                     self.waypoint_idx += 1
-
-                    # Якщо вийшли з дверей кухні назад у зал
-                    if self.courier_room == "kitchen" and self.waypoint_idx >= len(self.waypoints):
-                        self.courier_room = "hall"
-                        self.courier_x = 45.0
-                        self.courier_y = 470.0
-                        door_van_x = self.van_x + 10.0
-                        door_van_y = self.van_y - 20.0
-                        self.waypoints = [
-                            (140.0, 530.0),
-                            (350.0, 620.0),
-                            (door_van_x, door_van_y),
-                        ]
-                        self.waypoint_idx = 0
                 else:
                     ang = math.atan2(dy, dx)
                     self.courier_x += math.cos(ang) * step
@@ -234,46 +212,31 @@ class DeliveryManager:
                 self._start_next_order()
 
     def _setup_delivery_waypoints(self):
-        """Побудова акуратного шляху від дверей машинки до станції прийому"""
-        if not self.current:
-            return
-        if self.current.is_chef:
-            # На кухню через лівий прохід зали
-            self.waypoints = [
-                (250.0, 630.0),
-                (140.0, 530.0),
-                (45.0, 470.0),
-            ]
-        else:
-            # До барної стійки баристи
-            self.waypoints = [
-                (350.0, 625.0),
-                (540.0, 575.0),
-                (760.0, 535.0),
-            ]
+        """Побудова акуратного шляху від дверей машинки до вхідних дверей кафе"""
+        # Маршрут через вільний лівий прохід зали прямо до вхідних дверей із круглим віконцем (decor_door)
+        # Котик іде вільною зоною і не зачіпає меблі
+        self.waypoints = [
+            (270.0, 615.0),
+            (370.0, 525.0),
+            (480.0, 460.0),
+            (560.0, 435.0),
+        ]
         self.waypoint_idx = 0
 
     def _setup_return_waypoints(self):
-        """Шлях повернення від станції назад до відчинених дверей вантажівки"""
+        """Шлях повернення від дверей назад до відчинених дверей вантажівки"""
         door_van_x = self.van_x + 10.0
         door_van_y = self.van_y - 20.0
-
-        if self.courier_room == "kitchen":
-            # З кухні спочатку до арки виходу праворуч
-            self.waypoints = [
-                (830.0, 520.0),
-            ]
-        else:
-            # З зали кафе через центральний прохід назад до машинки
-            self.waypoints = [
-                (540.0, 575.0),
-                (350.0, 625.0),
-                (door_van_x, door_van_y),
-            ]
+        self.waypoints = [
+            (480.0, 460.0),
+            (370.0, 525.0),
+            (270.0, 615.0),
+            (door_van_x, door_van_y),
+        ]
         self.waypoint_idx = 0
 
     def _on_delivered(self):
-        """Зарахування +10 одиниць товару та святкові спецефекти"""
+        """Зарахування +10 одиниць товару та святкові спецефекти біля дверей"""
         if not self.current:
             return
         mid = self.current.item_id
@@ -282,9 +245,10 @@ class DeliveryManager:
 
         if hasattr(self.scene, "star_particles"):
             from game.scenes.cafe_hall import StarParticle
-            px = 610.0 if self.current.is_chef else 810.0
-            py = 590.0 if self.current.is_chef else 490.0
+            px = 560.0
+            py = 415.0
             for _ in range(12):
+                self.scene.star_particles.append(StarParticle(px, py))
                 self.scene.star_particles.append(StarParticle(px, py))
 
         name = self.current.item_name

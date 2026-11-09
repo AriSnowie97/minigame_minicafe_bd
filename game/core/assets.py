@@ -96,6 +96,7 @@ class Assets:
         font = pygame.font.SysFont("Arial", max(10, size[1] // 5), bold=True)
         label = font.render(name[:10], True, C.WHITE)
         surf.blit(label, label.get_rect(center=(size[0] // 2, size[1] // 2)))
+        surf._is_placeholder = True
         return surf
 
     # ------------------------------------------------------------------

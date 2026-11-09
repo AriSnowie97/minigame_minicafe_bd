@@ -1,12 +1,16 @@
 """
-Экран настроек — язык, звук, музыка.
+Екран налаштувань — мова, звук, музика та перевірка оновлень гри.
 """
 import pygame
-from game.core.settings   import C, WIDTH, HEIGHT
+from typing import Optional
+
+from game.core.settings   import C, WIDTH, HEIGHT, GAME_VERSION
 from game.core.assets     import assets
 from game.core.localization import locale
 from game.core.audio      import audio
+from game.core.updater    import updater
 from game.ui.button       import Button
+from game.ui.whats_new_modal import WhatsNewModal
 
 
 class SettingsScene:
@@ -14,24 +18,31 @@ class SettingsScene:
         self.manager    = manager
         self.sound_on   = audio.sfx_on
         self.music_on   = audio.music_on
+        self.whats_new_modal = WhatsNewModal()
+        self.check_status: Optional[str] = None
         self._build_ui()
 
     def _build_ui(self):
         cx = WIDTH // 2
-        # Кнопки языка внутри карточки
+        # Кнопки вибору мови
         langs = [("uk", "Українська"), ("ru", "Русский"), ("en", "English")]
         self.lang_btns = []
         for i, (code, label) in enumerate(langs):
-            r = pygame.Rect(cx - 130, 215 + i * 50, 260, 44)
-            self.lang_btns.append((code, label, Button(r, label, font_size=20)))
+            r = pygame.Rect(cx - 130, 205 + i * 42, 260, 36)
+            self.lang_btns.append((code, label, Button(r, label, font_size=17)))
 
-        self.btn_sound = Button(pygame.Rect(cx - 130, 380, 260, 46),
-                                self._sound_label(), font_size=20)
-        self.btn_music = Button(pygame.Rect(cx - 130, 435, 260, 46),
-                                self._music_label(), font_size=20)
+        self.btn_sound = Button(pygame.Rect(cx - 130, 338, 260, 40),
+                                self._sound_label(), font_size=18)
+        self.btn_music = Button(pygame.Rect(cx - 130, 384, 260, 40),
+                                self._music_label(), font_size=18)
 
-        self.btn_back  = Button(pygame.Rect(cx - 110, 505, 220, 50),
-                                locale.get("settings.back"), font_size=24)
+        # Кнопка оновлень
+        btn_update_label = "Оновити гру зараз!" if updater.has_update else "Перевірити оновлення"
+        self.btn_update = Button(pygame.Rect(cx - 130, 432, 260, 40),
+                                 btn_update_label, font_size=17)
+
+        self.btn_back  = Button(pygame.Rect(cx - 110, 502, 220, 46),
+                                locale.get("settings.back"), font_size=22)
 
     def _sound_label(self):
         state = locale.get("settings.on") if self.sound_on else locale.get("settings.off")
@@ -44,39 +55,69 @@ class SettingsScene:
     def on_enter(self, **kwargs):
         self.sound_on = audio.sfx_on
         self.music_on = audio.music_on
+        self.check_status = None
         self._build_ui()
 
     def handle_event(self, event: pygame.event.Event):
+        if self.whats_new_modal.is_open:
+            if self.whats_new_modal.handle_event(event):
+                return
+
         if self.btn_back.handle_event(event):
             self.manager.switch("main_menu")
+            return
 
         for code, label, btn in self.lang_btns:
             if btn.handle_event(event):
                 locale.set_lang(code)
-                self._build_ui()   # обновляем тексты
+                self._build_ui()
 
         if self.btn_sound.handle_event(event):
             self.sound_on = not self.sound_on
             audio.set_sfx_enabled(self.sound_on)
             self.btn_sound.set_text(self._sound_label())
-            audio.play("ui_click")   # короткое подтверждение при включении
+            audio.play("ui_click")
 
         if self.btn_music.handle_event(event):
             self.music_on = not self.music_on
             audio.set_music_enabled(self.music_on)
             self.btn_music.set_text(self._music_label())
 
+        if self.btn_update.handle_event(event):
+            audio.play("ui_click")
+            if updater.has_update or updater.download_state in ("downloading", "completed"):
+                self.whats_new_modal.open("update_available")
+            else:
+                self.check_status = "Перевірка зв'язку з GitHub..."
+                self.btn_update.set_text("Перевірка...")
+
+                def on_done(has_update):
+                    if has_update:
+                        self.check_status = f"Доступне оновлення {updater.latest_version}!"
+                        self.btn_update.set_text("Оновити гру зараз!")
+                        self.whats_new_modal.open("update_available")
+                    else:
+                        self.check_status = f"У вас найновіша версія ({GAME_VERSION}) ✓"
+                        self.btn_update.set_text("Перевірити оновлення")
+
+                updater.check(force=True, on_complete=on_done)
+
     def update(self, dt: float):
+        if self.whats_new_modal.is_open:
+            self.whats_new_modal.update(dt)
+            return
+
         self.btn_back.update(dt)
         self.btn_sound.update(dt)
         self.btn_music.update(dt)
+        self.btn_update.update(dt)
         for _, _, btn in self.lang_btns:
             btn.update(dt)
 
     def draw(self, surface: pygame.Surface):
         cx, cy = WIDTH // 2, HEIGHT // 2
 
-        # 1. Фон улицы (смягченный bg_settings)
+        # 1. Фон вулиці (bg_settings)
         bg_img = assets.image("bg_settings")
         if bg_img and not getattr(bg_img, "_is_placeholder", False):
             if not hasattr(self, "_cached_bg"):
@@ -86,14 +127,14 @@ class SettingsScene:
         else:
             surface.fill(C.DARK_SAGE)
 
-        # 2. Затемнение для акцента на модальном окне
+        # 2. Затемнення для акценту на модальному вікні
         dim = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
         dim.fill((20, 20, 20, 90))
         surface.blit(dim, (0, 0))
 
-        # 3. Фирменная карточка-панель с кошачьими лапками в углах
+        # 3. Фірмова картка-панель
         panel = assets.image("ui_panel")
-        pw, ph = 460, 520
+        pw, ph = 460, 530
         panel_s = pygame.transform.smoothscale(panel, (pw, ph))
         surface.blit(panel_s, panel_s.get_rect(center=(cx, cy)))
 
@@ -102,22 +143,36 @@ class SettingsScene:
         bw = 290
         bh = int(bw * (banner.get_height() / max(1, banner.get_width())))
         banner_s = pygame.transform.smoothscale(banner, (bw, bh))
-        surface.blit(banner_s, banner_s.get_rect(center=(cx, cy - 195)))
+        surface.blit(banner_s, banner_s.get_rect(center=(cx, cy - 200)))
 
         f_title = assets.font_title(24)
         t = f_title.render(locale.get("settings.title"), True, C.WHITE)
-        surface.blit(t, t.get_rect(center=(cx, cy - 197)))
+        surface.blit(t, t.get_rect(center=(cx, cy - 202)))
 
-        # 5. Кнопки языка
-        f_label = assets.font_ui(15)
+        # 5. Мова
+        f_label = assets.font_ui(14)
         lang_lbl = f_label.render(locale.get("settings.language"), True, C.LIGHT_GRAY)
-        surface.blit(lang_lbl, lang_lbl.get_rect(center=(cx, 195)))
+        surface.blit(lang_lbl, lang_lbl.get_rect(center=(cx, 188)))
         for code, _, btn in self.lang_btns:
             btn.draw(surface)
 
-        # 6. Звук / музыка
+        # 6. Звук / музика
         self.btn_sound.draw(surface)
         self.btn_music.draw(surface)
 
-        # 7. Назад
+        # 7. Оновлення гри
+        self.btn_update.draw(surface)
+
+        # Підпис статусу версії
+        f_info = assets.font_ui(12)
+        stat_text = self.check_status or f"MiniCafe {GAME_VERSION}"
+        stat_col = (80, 160, 90) if "✓" in stat_text else ((210, 110, 40) if "Доступне" in stat_text else C.LIGHT_GRAY)
+        st_t = f_info.render(stat_text, True, stat_col)
+        surface.blit(st_t, st_t.get_rect(center=(cx, 482)))
+
+        # 8. Кнопка Назад
         self.btn_back.draw(surface)
+
+        # 9. Модальне вікно оновлення/новин, якщо відкрите
+        if self.whats_new_modal.is_open:
+            self.whats_new_modal.draw(surface)
