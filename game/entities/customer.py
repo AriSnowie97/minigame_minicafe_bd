@@ -22,6 +22,16 @@ class CustomerState:
     GONE        = "gone"
 
 
+# Маршрути обходу столиків у головному залі від вхідних дверей (550, 431)
+HALL_TABLE_PATHS = {
+    2:  [(572.0, 424.0), (620.0, 412.0)],
+    3:  [(544.0, 452.0), (512.0, 482.0)],
+    4:  [(572.0, 446.0), (595.0, 486.0)],
+    9:  [(558.0, 452.0), (538.0, 495.0), (518.0, 552.0), (506.0, 600.0), (528.0, 622.0)],
+    10: [(568.0, 452.0), (554.0, 515.0), (576.0, 568.0), (612.0, 605.0), (656.0, 642.0)],
+}
+
+
 class Customer:
     _id_counter = 0
 
@@ -55,6 +65,15 @@ class Customer:
         self.exit_y = self.door_y
         self.target_x = float(target_table.screen_x)
         self.target_y = float(target_table.screen_y)
+
+        tbl_num = getattr(target_table, "table_number", 1)
+        if tbl_num in HALL_TABLE_PATHS:
+            self.in_waypoints = list(HALL_TABLE_PATHS[tbl_num]) + [(self.target_x, self.target_y)]
+        else:
+            self.in_waypoints = [(self.mat_x, self.mat_y), (self.target_x, self.target_y)]
+        self.walk_wp_idx = 0
+        self.leave_waypoints = list(reversed(self.in_waypoints[:-1])) + [(self.door_x, self.door_y)]
+        self.leave_wp_idx = 0
 
         self.walk_phase = "to_mat"
         self.leave_phase = "to_mat"
@@ -98,16 +117,11 @@ class Customer:
             self.using_table_sprite = False
 
         if self.state == CustomerState.WALKING_IN:
-            if self.walk_phase == "to_mat":
-                self._move_towards(self.mat_x, self.mat_y, speed=120, dt=dt)
-                if math.hypot(self.x - self.mat_x, self.y - self.mat_y) < 6:
-                    self.walk_phase = "to_table"
-            else:
-                self._move_towards(self.target_x, self.target_y, speed=135, dt=dt)
-                if math.hypot(self.x - self.target_x, self.y - self.target_y) < 6:
-                    self.x, self.y = self.target_x, self.target_y
-                    self.state = CustomerState.SEATED
-                    self.table.state = "seated"
+            self.walk_wp_idx, finished = self._follow_waypoints(self.in_waypoints, self.walk_wp_idx, speed=130, dt=dt, tol=6.0)
+            if finished:
+                self.x, self.y = self.target_x, self.target_y
+                self.state = CustomerState.SEATED
+                self.table.state = "seated"
 
         elif self.state == CustomerState.SEATED:
             # Немного ждём, потом начинаем ждать заказ
@@ -143,20 +157,26 @@ class Customer:
                 self._start_leaving()
 
         elif self.state == CustomerState.LEAVING:
-            if self.leave_phase == "to_mat":
-                self._move_towards(self.mat_x, self.mat_y, speed=140, dt=dt)
-                if math.hypot(self.x - self.mat_x, self.y - self.mat_y) < 8:
-                    self.leave_phase = "to_door"
-            else:
-                self._move_towards(self.door_x, self.door_y, speed=140, dt=dt)
-                if math.hypot(self.x - self.door_x, self.y - self.door_y) < 8:
-                    self.state = CustomerState.GONE
+            self.leave_wp_idx, finished = self._follow_waypoints(self.leave_waypoints, self.leave_wp_idx, speed=140, dt=dt, tol=8.0)
+            if finished:
+                self.state = CustomerState.GONE
 
         # Монеты
         if self._coins_show > 0:
             self._coins_show -= dt
 
     # ------------------------------------------------------------------
+    def _follow_waypoints(self, waypoints: list, idx: int, speed: float, dt: float, tol: float = 6.0):
+        """Рухає гостя по ланцюжку координат, повертає (новий_індекс, чи_завершено)."""
+        if idx >= len(waypoints):
+            return idx, True
+        tx, ty = waypoints[idx]
+        self._move_towards(tx, ty, speed=speed, dt=dt)
+        if math.hypot(self.x - tx, self.y - ty) <= tol:
+            self.x, self.y = tx, ty
+            idx += 1
+        return idx, idx >= len(waypoints)
+
     def _move_towards(self, tx: float, ty: float, speed: float, dt: float):
         dx = tx - self.x
         dy = ty - self.y
@@ -165,11 +185,13 @@ class Customer:
             step = min(speed * dt, dist)
             self.x += dx / dist * step
             self.y += dy / dist * step
-            self.direction = "right" if dx > 0 else "left"
+            if abs(dx) > 0.5:
+                self.direction = "right" if dx > 0 else "left"
 
     def _start_leaving(self):
         self.state = CustomerState.LEAVING
         self.leave_phase = "to_mat"
+        self.leave_wp_idx = 0
         self.table.reset()
 
     # ------------------------------------------------------------------
