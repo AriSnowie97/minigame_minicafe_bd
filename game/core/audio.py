@@ -236,28 +236,32 @@ class AudioManager:
     # ------------------------------------------------------------------
     # Эффекты
     # ------------------------------------------------------------------
-    def play(self, name: str, mult: float = 1.0, delay: float = 0.0):
+    def play(self, name: str, mult: float = 1.0, delay: float = 0.0, force: bool = False):
         """
         Проигрывает эффект.
         mult  — множитель громкости (например, 0.45 для событий в соседней комнате)
         delay — отложенный старт в секундах
+        force — игнорировать кулдауны (для важных событий вроде VIP-котика)
         """
         if not (self.enabled and self.sfx_on) or mult <= 0.0:
             return
         if delay > 0:
-            self._pending.append([delay, name, mult])
+            self._pending.append([delay, name, mult, force])
             return
         spec = SFX.get(name)
         if spec is None:
             return
 
         now = time.monotonic()
-        cd = spec.get("cooldown", 0.0)
-        if cd and now - self._last_play.get(name, -99.0) < cd:
-            return
-        group = spec.get("group")
-        if group and now - self._group_last.get(group, -99.0) < GROUP_COOLDOWN.get(group, 0.0):
-            return
+        if not force:
+            cd = spec.get("cooldown", 0.0)
+            if cd and now - self._last_play.get(name, -99.0) < cd:
+                return
+            group = spec.get("group")
+            if group and now - self._group_last.get(group, -99.0) < GROUP_COOLDOWN.get(group, 0.0):
+                return
+        else:
+            group = spec.get("group")
 
         snd = self._get_sfx(name)
         if snd is None:
@@ -360,7 +364,8 @@ class AudioManager:
             for item in self._pending:
                 item[0] -= dt
                 if item[0] <= 0:
-                    self.play(item[1], item[2])
+                    force_flag = item[3] if len(item) > 3 else False
+                    self.play(item[1], item[2], force=force_flag)
                 else:
                     still.append(item)
             self._pending = still

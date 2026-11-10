@@ -277,31 +277,36 @@ class CafeHallScene:
         ids = [it.get("id") for it in items]
         drinks = bool(ids) and all(i in self.DRINK_IDS for i in ids)
         vis = self._vis(self._table_room(tbl))
+        is_vip = getattr(getattr(tbl, "customer", None), "is_vip", False)
         audio.play("cup_clink" if drinks else "plate_place", vis)
-        audio.play("cat_happy", vis, delay=0.25)
+        audio.play("cat_happy", vis, delay=0.25, force=is_vip)
 
     def _sfx_customer(self, cust, old_state):
         """Звуки по смене состояния гостя (опрашиваем, не трогая сущность Customer)"""
         new = cust.state
         vis = self._vis(self._table_room(cust.table))
+        is_vip = getattr(cust, "is_vip", False)
         if new != old_state:
             if new == CustomerState.WAITING:
-                audio.play("cat_wait", vis)
+                audio.play("cat_wait", vis, force=is_vip)
+                if is_vip:
+                    audio.play("star", vis * 0.85, delay=0.22, force=True)
             elif new == CustomerState.PAYING:
-                if getattr(cust, "is_vip", False):
-                    audio.play("order_complete", vis)
-                    audio.play("coin_x2", vis, delay=0.3)
+                if is_vip:
+                    audio.play("cat_happy", vis, force=True)
+                    audio.play("order_complete", vis, delay=0.12, force=True)
+                    audio.play("coin_x2", vis, delay=0.32, force=True)
                 elif len(cust.menu_items) > 1:
                     audio.play("coin_x2", vis)
                 else:
                     audio.play("coin", vis)
             elif new == CustomerState.GONE and not cust.satisfied:
-                audio.play("order_fail", vis)
+                audio.play("order_fail", vis, force=is_vip)
         # Нетерпение — один раз, когда терпение почти кончилось
         if (new == CustomerState.WAITING and not getattr(cust, "_sfx_warned", False)
                 and cust.patience < cust.max_patience * 0.28):
             cust._sfx_warned = True
-            audio.play("cat_impatient", vis)
+            audio.play("cat_impatient", vis, force=is_vip)
 
     def _sfx_waiter(self, w):
         """Официант взял блюдо на поднос / перешёл в другую комнату"""
@@ -579,11 +584,13 @@ class CafeHallScene:
                     if self._on_counter_click(mx, my):
                         return
 
-                # Клік по столиках залу (1..4)
-                for tbl in [t for t in self._tables if t.table_number in HALL_TABLES]:
-                    if tbl.hitbox.collidepoint(mx, my):
-                        self._on_table_click(tbl)
-                        return
+                # Клік по столиках залу (1..4) або по сидячому котику
+                hit_tbl = self._find_clicked_table(
+                    [t for t in self._tables if t.table_number in HALL_TABLES], mx, my
+                )
+                if hit_tbl:
+                    self._on_table_click(hit_tbl)
+                    return
 
             elif self.target_room == "kitchen":
                 # Перехід до залу кафе (праворуч)
@@ -608,11 +615,26 @@ class CafeHallScene:
                     self.switch_room("hall")
                     return
 
-                # Клік по столиках тераси (5..8)
-                for tbl in [t for t in self._tables if t.table_number in (5, 6, 7, 8)]:
-                    if tbl.hitbox.collidepoint(mx, my):
-                        self._on_table_click(tbl)
-                        return
+                # Клік по столиках тераси (5..8) або по сидячому котику
+                hit_tbl = self._find_clicked_table(
+                    [t for t in self._tables if t.table_number in (5, 6, 7, 8)], mx, my
+                )
+                if hit_tbl:
+                    self._on_table_click(hit_tbl)
+                    return
+
+    @staticmethod
+    def _find_clicked_table(tables, mx: int, my: int):
+        """Повертає столик за кліком: спершу точний hitbox стола, потім розширена зона голови/корони котика."""
+        for tbl in tables:
+            if tbl.hitbox.collidepoint(mx, my):
+                return tbl
+        for tbl in tables:
+            if tbl.customer is not None and tbl.customer.state != CustomerState.WALKING_IN:
+                head_rect = pygame.Rect(tbl.screen_x - 56, tbl.screen_y - 76, 112, 114)
+                if head_rect.collidepoint(mx, my):
+                    return tbl
+        return None
 
     # ------------------------------------------------------------------
     # ------------------------------------------------------------------
@@ -797,25 +819,50 @@ class CafeHallScene:
 
         # Замовлення зараз готується
         if tbl.state == TableState.ORDERED:
+            self._play_customer_click_sfx(cust)
             cook_prog = int((1.0 - tbl.cook_timer / max(0.1, tbl.cook_total)) * 100)
             self.notifications.append(
                 Notification(f"Замовлення столика №{tbl.table_number} готується... ({cook_prog}%)", C.NOTIF_INFO, 1.2)
             )
             return
 
+        # Замовлення прийняте, чекає на початок приготування баристою
+        if cust.state == CustomerState.ORDER_TAKEN:
+            self._play_customer_click_sfx(cust)
+            self.notifications.append(
+                Notification(f"Замовлення столика №{tbl.table_number} прийнято! Клікніть на баристу, щоб зварити.", C.NOTIF_INFO, 1.4)
+            )
+            return
+
         # Клієнт щойно сів
         if cust.state == CustomerState.SEATED:
+            self._play_customer_click_sfx(cust)
             self.notifications.append(
                 Notification("Котик ще обирає страву з меню...", C.NOTIF_INFO, 1.2)
             )
             return
 
-        # Клієнт їсть
-        if cust.state == CustomerState.EATING:
+        # Клієнт їсть або розраховується
+        if cust.state in (CustomerState.EATING, CustomerState.PAYING):
+            self._play_customer_click_sfx(cust)
             self.notifications.append(
                 Notification("Котик смакує замовлення! *ням-ням*", C.NOTIF_INFO, 1.2)
             )
             return
+
+    @staticmethod
+    def _play_customer_click_sfx(cust):
+        """Озвучка при кліку на гостя (для VIP-котика гарантовано без приглушення кулдауном)."""
+        import time as _t
+        now = _t.monotonic()
+        if now - getattr(cust, "_last_click_sfx", 0.0) < 0.6:
+            return
+        cust._last_click_sfx = now
+        if getattr(cust, "is_vip", False):
+            audio.play("cat_happy", 0.9, force=True)
+            audio.play("star", 0.55, delay=0.10, force=True)
+        else:
+            audio.play("cat_happy", 0.7)
 
     # ------------------------------------------------------------------
     def _start_order_cooking(self, tbl: CafeTable):
@@ -1011,9 +1058,12 @@ class CafeHallScene:
         tbl.customer = cust
         tbl.waiter_order = False
         self.customers.append(cust)
-        audio.play("door_bell", self._vis(self._table_room(tbl)))
+        vis = self._vis(self._table_room(tbl))
+        audio.play("door_bell", vis, force=vip)
 
         if vip:
+            audio.play("star", vis, delay=0.15, force=True)
+            audio.play("cat_happy", vis, delay=0.35, force=True)
             self.notifications.append(Notification("VIP-гість завітав до кафе! Замовляє одразу 4 страви :3", (150, 110, 190), 3.4))
 
         # Гість сів у кімнаті, яку гравець зараз не бачить — повідомляємо
