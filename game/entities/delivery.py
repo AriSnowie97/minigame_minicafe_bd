@@ -54,15 +54,16 @@ class DeliveryManager:
         self.van_honked = False
 
         # Позиція та навігація котика-кур'єра
-        self.courier_x = 145.0
-        self.courier_y = 635.0
-        self.courier_speed = 140.0
+        self.courier_x = 240.0
+        self.courier_y = 605.0
+        self.courier_speed = 175.0
         self.courier_walk_t = 0.0
         self.courier_room = "hall"   # "hall" або "kitchen"
         self.courier_facing_right = True
+        self.courier_behind_wall = False
 
-        # Точки маршруту (вейпоінти)
-        self.waypoints: List[Tuple[float, float]] = []
+        # Точки маршруту: (x, y, behind_wall, speed_mult)
+        self.waypoints: List[Tuple[float, float, bool, float]] = []
         self.waypoint_idx = 0
         self.use_push_cart = False
 
@@ -124,47 +125,30 @@ class DeliveryManager:
                     self.van_honked = True
                     audio.play("service_bell")
                 if self.state_time > 0.45:
-                    # Двері машинки відчиняються, кур'єр виходить
+                    # Двері машинки відчиняються, кур'єр виходить на тротуар біля кабіни
                     self.state = self.STATE_COURIER_DELIVER
                     self.state_time = 0.0
                     self.courier_room = "hall"
-                    self.courier_x = self.van_x + 10.0
-                    self.courier_y = self.van_y - 20.0
+                    self.courier_x = self.van_x + 95.0
+                    self.courier_y = self.van_y - 45.0
+                    self.courier_behind_wall = False
                     self._setup_delivery_waypoints()
 
         # -------------------------------------------------------------
-        # 2. Кур'єр несе / везе продукцію до станції
+        # 2. Кур'єр іде вулицею навколо кафе та входить у двері
         # -------------------------------------------------------------
         elif self.state == self.STATE_COURIER_DELIVER:
-            self.courier_walk_t += dt * 8.5
-            if self.waypoint_idx < len(self.waypoints):
-                tx, ty = self.waypoints[self.waypoint_idx]
-                dx = tx - self.courier_x
-                dy = ty - self.courier_y
-                dist = math.hypot(dx, dy)
-
-                if abs(dx) > 0.5:
-                    self.courier_facing_right = (dx > 0)
-
-                step = self.courier_speed * dt
-                if dist <= max(step, 8.0):
-                    self.courier_x = tx
-                    self.courier_y = ty
-                    self.waypoint_idx += 1
-                else:
-                    ang = math.atan2(dy, dx)
-                    self.courier_x += math.cos(ang) * step
-                    self.courier_y += math.sin(ang) * step
-            else:
-                # Дійшли до вхідних дверей — передача товару
+            if self._advance_courier_along_waypoints(dt, ring_door_on_enter=True):
+                # Зайшов у двері на килимок — передача товару
                 self.state = self.STATE_COURIER_HANDOFF
                 self.state_time = 0.0
+                self.courier_behind_wall = False
                 audio.play("plate_place")
                 audio.play("star", mult=0.8, delay=0.15)
                 self._on_delivered()
 
         # -------------------------------------------------------------
-        # 3. Передача товару (котик радіє біля дверей)
+        # 3. Передача товару (котик радіє біля дверей на килимку)
         # -------------------------------------------------------------
         elif self.state == self.STATE_COURIER_HANDOFF:
             if self.state_time > 1.35:
@@ -173,32 +157,14 @@ class DeliveryManager:
                 self._setup_return_waypoints()
 
         # -------------------------------------------------------------
-        # 4. Кур'єр порожніми лапками повертається до машинки
+        # 4. Кур'єр виходить у двері та обходить кафе назад до машинки
         # -------------------------------------------------------------
         elif self.state == self.STATE_COURIER_RETURN:
-            self.courier_walk_t += dt * 8.5
-            if self.waypoint_idx < len(self.waypoints):
-                tx, ty = self.waypoints[self.waypoint_idx]
-                dx = tx - self.courier_x
-                dy = ty - self.courier_y
-                dist = math.hypot(dx, dy)
-
-                if abs(dx) > 0.5:
-                    self.courier_facing_right = (dx > 0)
-
-                step = self.courier_speed * dt
-                if dist <= max(step, 8.0):
-                    self.courier_x = tx
-                    self.courier_y = ty
-                    self.waypoint_idx += 1
-                else:
-                    ang = math.atan2(dy, dx)
-                    self.courier_x += math.cos(ang) * step
-                    self.courier_y += math.sin(ang) * step
-            else:
+            if self._advance_courier_along_waypoints(dt):
                 # Кур'єр застрибнув назад у фургон
                 self.state = self.STATE_VAN_OUT
                 self.state_time = 0.0
+                self.courier_behind_wall = False
                 audio.play("cat_happy")
                 audio.play("service_bell", delay=0.1)
 
@@ -211,27 +177,73 @@ class DeliveryManager:
             if self.van_x < -360.0:
                 self._start_next_order()
 
+    def _advance_courier_along_waypoints(self, dt: float, ring_door_on_enter: bool = False) -> bool:
+        """Рухає кур'єра по списку точок (x, y, behind_wall, speed_mult). Повертає True, коли маршрут завершено."""
+        self.courier_walk_t += dt * 8.5
+        if self.waypoint_idx >= len(self.waypoints):
+            return True
+
+        tx, ty, behind_wall, speed_mult = self.waypoints[self.waypoint_idx]
+        if ring_door_on_enter and self.courier_behind_wall and not behind_wall:
+            audio.play("door_bell")
+        self.courier_behind_wall = behind_wall
+
+        dx = tx - self.courier_x
+        dy = ty - self.courier_y
+        dist = math.hypot(dx, dy)
+
+        if abs(dx) > 0.5:
+            self.courier_facing_right = (dx > 0)
+
+        step = self.courier_speed * speed_mult * dt
+        if dist <= max(step, 8.0):
+            self.courier_x = tx
+            self.courier_y = ty
+            self.waypoint_idx += 1
+        else:
+            ang = math.atan2(dy, dx)
+            self.courier_x += math.cos(ang) * step
+            self.courier_y += math.sin(ang) * step
+        return False
+
+    def is_courier_active(self, room_name: str) -> bool:
+        return self.courier_room == room_name and self.state in (
+            self.STATE_COURIER_DELIVER,
+            self.STATE_COURIER_HANDOFF,
+            self.STATE_COURIER_RETURN,
+        )
+
     def _setup_delivery_waypoints(self):
-        """Побудова акуратного шляху від дверей машинки до вхідних дверей кафе"""
-        # Маршрут через вільний лівий прохід зали прямо до вхідних дверей із круглим віконцем (decor_door)
-        # Котик іде вільною зоною і не зачіпає меблі
+        """Маршрут по зовнішній бруківці зліва навколо верхньої стіни до вхідних дверей і на килимок"""
         self.waypoints = [
-            (270.0, 615.0),
-            (370.0, 525.0),
-            (480.0, 460.0),
-            (560.0, 435.0),
+            (238.0, 560.0, False, 1.0),  # Збоку від кабіни на бруківці
+            (242.0, 420.0, False, 1.0),  # Вгору по зовнішній бруківці вздовж лівої стіни
+            (250.0, 280.0, False, 1.0),  # Повз лівий кут будівлі ззовні
+            (285.0, 190.0, False, 1.0),  # Заокруглення за верхнім лівим кутом
+            (335.0, 152.0, True,  1.0),  # Зовнішня доріжка нижче HUD та вище краю стіни
+            (395.0, 140.0, True,  1.0),  # Над верхньою лівою стіною ззовні (повністю видно)
+            (455.0, 142.0, True,  1.0),  # Спуск по бруківці у бік дверей
+            (515.0, 152.0, True,  1.0),  # Захід за задню стіну над дверима
+            (555.0, 428.0, True,  1.8),  # Підхід ззовні до порогу дверей (за стіною)
+            (595.0, 446.0, False, 1.0),  # Крок усередину через двері на килимок!
         ]
         self.waypoint_idx = 0
 
     def _setup_return_waypoints(self):
-        """Шлях повернення від дверей назад до відчинених дверей вантажівки"""
-        door_van_x = self.van_x + 10.0
-        door_van_y = self.van_y - 20.0
+        """Зворотний шлях: вихід у двері -> зовнішня бруківка навколо кафе -> повернення до вантажівки"""
+        van_side_x = max(180.0, self.van_x + 95.0)
+        van_side_y = self.van_y - 45.0
         self.waypoints = [
-            (480.0, 460.0),
-            (370.0, 525.0),
-            (270.0, 615.0),
-            (door_van_x, door_van_y),
+            (555.0, 428.0, False, 1.0),  # Вихід із зали назад у двері
+            (515.0, 152.0, True,  1.8),  # Підйом ззовні за стіною на тротуар
+            (455.0, 142.0, True,  1.0),
+            (395.0, 140.0, True,  1.0),
+            (335.0, 152.0, True,  1.0),
+            (285.0, 190.0, False, 1.0),
+            (250.0, 280.0, False, 1.0),
+            (242.0, 420.0, False, 1.0),
+            (238.0, 560.0, False, 1.0),
+            (van_side_x, van_side_y, False, 1.0),
         ]
         self.waypoint_idx = 0
 
@@ -245,8 +257,8 @@ class DeliveryManager:
 
         if hasattr(self.scene, "star_particles"):
             from game.scenes.cafe_hall import StarParticle
-            px = 560.0
-            py = 415.0
+            px = float(self.courier_x)
+            py = float(self.courier_y - 25.0)
             for _ in range(12):
                 self.scene.star_particles.append(StarParticle(px, py))
                 self.scene.star_particles.append(StarParticle(px, py))

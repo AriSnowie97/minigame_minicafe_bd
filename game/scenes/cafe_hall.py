@@ -1320,6 +1320,9 @@ class CafeHallScene:
 
             # 2.1 Фон навколо кімнати та сама кімната
             self._draw_backdrop(surface, room_name, dx)
+            # Якщо кур'єр обходить будівлю позаду стіни — малюємо його за шаром кімнати
+            if room_name == "hall" and self.delivery_manager.is_courier_active("hall") and self.delivery_manager.courier_behind_wall:
+                self.delivery_manager.draw_courier(surface, "hall", offset_x=dx)
             if bg_surf:
                 surface.blit(bg_surf, (dx, 0))
 
@@ -1342,11 +1345,9 @@ class CafeHallScene:
                 self._draw_cooking_station(surface, offset_x=dx)
                 self._draw_counter_pickup_station(surface, offset_x=dx)
 
-                # Машинка доставки на вулиці
-                self.delivery_manager.draw_van(surface, offset_x=dx)
-
-                # Сортування по глибині (Y): столики залу 1..4, клієнти, офіціант, кур'єр доставки
+                # Сортування по глибині (Y): столики залу 1..4, клієнти, офіціант, вантажівка та кур'єр доставки
                 draw_list = []
+                draw_list.append((self.delivery_manager.van_y, lambda s: self.delivery_manager.draw_van(s, offset_x=dx)))
                 for tbl in hall_tables:
                     draw_list.append((tbl.screen_y, lambda s, t=tbl: t.draw(s, offset_x=dx)))
 
@@ -1358,12 +1359,8 @@ class CafeHallScene:
                 for w in self._waiters_in("hall"):
                     draw_list.append((w.y, lambda s, w=w: w.draw(s, offset_x=dx)))
 
-                # Котик-кур'єр сортується за глибиною Y — не потрапляє під текстури меблів
-                if self.delivery_manager.courier_room == "hall" and self.delivery_manager.state in (
-                    self.delivery_manager.STATE_COURIER_DELIVER,
-                    self.delivery_manager.STATE_COURIER_HANDOFF,
-                    self.delivery_manager.STATE_COURIER_RETURN
-                ):
+                # Котик-кур'єр на зовнішньому тротуарі зліва або всередині залу (попереду стін)
+                if self.delivery_manager.is_courier_active("hall") and not self.delivery_manager.courier_behind_wall:
                     draw_list.append((self.delivery_manager.courier_y, lambda s: self.delivery_manager.draw_courier(s, "hall", offset_x=dx)))
 
                 draw_list.sort(key=lambda item: item[0])
