@@ -227,7 +227,7 @@ class UpdateChecker:
             }
         )
         try:
-            with urllib.request.urlopen(req, timeout=4.0) as resp:
+            with urllib.request.urlopen(req, timeout=10.0) as resp:
                 if resp.status == 200:
                     data = json.loads(resp.read().decode("utf-8"))
                     remote_tag = data.get("tag_name", "").strip()
@@ -250,9 +250,10 @@ class UpdateChecker:
                 redirect_url = f"https://github.com/{GITHUB_REPO}/releases/latest"
                 redir_req = urllib.request.Request(
                     redirect_url,
+                    method="HEAD",
                     headers={"User-Agent": "MiniCafe-Game-Client/1.1"}
                 )
-                with urllib.request.urlopen(redir_req, timeout=4.0) as resp:
+                with urllib.request.urlopen(redir_req, timeout=10.0) as resp:
                     final_url = resp.geturl()
                     if "/tag/" in final_url:
                         remote_tag = final_url.split("/tag/")[-1].strip().split("/")[0]
@@ -431,6 +432,7 @@ class UpdateChecker:
         # Створюємо скрипт minicafe_updater.bat у тимчасовій теці
         bat_path = os.path.join(tempfile.gettempdir(), "minicafe_updater.bat")
         bat_content = f"""@echo off
+chcp 65001 >nul
 setlocal
 set "PID={os.getpid()}"
 set "NEW_EXE={temp_exe}"

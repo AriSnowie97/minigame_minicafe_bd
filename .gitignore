@@ -5,6 +5,7 @@ assets/.cache/
 screenshot_*.png
 dist/
 build/
+*.spec
 player_profile.json
 inspect_street.py
 measure_coords.py

@@ -1,10 +1,10 @@
 # MiniCafe 🐱☕
 
-[![Завантажити MiniCafe.exe](https://img.shields.io/badge/Завантажити_гру-MiniCafe.exe_(v1.1.0)-2ea44f?style=for-the-badge&logo=windows)](https://github.com/AriSnowie97/minigame_minicafe_bd/releases/download/v1.1.0/MiniCafe.exe)
+[![Завантажити MiniCafe.exe](https://img.shields.io/badge/Завантажити_гру-MiniCafe.exe_(v1.1.1)-2ea44f?style=for-the-badge&logo=windows)](https://github.com/AriSnowie97/minigame_minicafe_bd/releases/latest/download/MiniCafe.exe)
 [![Офіційний сайт](https://img.shields.io/badge/Сайт_гри-MiniCafe_Online-orange?style=for-the-badge)](https://arisnowie97.github.io/minigame_minicafe_bd/)
-[![Релізи](https://img.shields.io/badge/GitHub-Releases-blue?style=for-the-badge)](https://github.com/AriSnowie97/minigame_minicafe_bd/releases)
+[![Релізи](https://img.shields.io/badge/GitHub-Releases-blue?style=for-the-badge)](https://github.com/AriSnowie97/minigame_minicafe_bd/releases/latest)
 
-### ⬇️ [Пряме завантаження MiniCafe.exe (Windows, ~250 МБ)](https://github.com/AriSnowie97/minigame_minicafe_bd/releases/download/v1.1.0/MiniCafe.exe)
+### ⬇️ [Пряме завантаження MiniCafe.exe (Windows, ~280 МБ)](https://github.com/AriSnowie97/minigame_minicafe_bd/releases/latest/download/MiniCafe.exe)
 
 > 💡 **Файл автономний:** гра запускається в один клік без встановлення Python та налаштування оточення.
 > 
@@ -78,7 +78,7 @@
 
 ## 📦 Завантаження та збірка у виконуваний файл (.exe)
 
-* **Готова гра для Windows:** [⬇️ Завантажити MiniCafe.exe (v1.1.0, ~250 МБ)](https://github.com/AriSnowie97/minigame_minicafe_bd/releases/download/v1.1.0/MiniCafe.exe) напряму або у розділі **[Releases](https://github.com/AriSnowie97/minigame_minicafe_bd/releases)** на GitHub.
+* **Готова гра для Windows:** [⬇️ Завантажити останній MiniCafe.exe (~280 МБ)](https://github.com/AriSnowie97/minigame_minicafe_bd/releases/latest/download/MiniCafe.exe) напряму або у розділі **[Releases](https://github.com/AriSnowie97/minigame_minicafe_bd/releases)** на GitHub.
 * **Самостійна збірка:** У корені проекту є скрипт автоматичної збірки через PyInstaller:
   ```powershell
   powershell -ExecutionPolicy Bypass -File build_exe.ps1

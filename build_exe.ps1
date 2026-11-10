@@ -62,4 +62,6 @@ if ($LASTEXITCODE -ne 0) {
     throw "PyInstaller build failed with exit code $LASTEXITCODE"
 }
 
+Remove-Item "MiniCafe.spec" -ErrorAction SilentlyContinue
+
 Write-Host "Done: dist\MiniCafe.exe"
