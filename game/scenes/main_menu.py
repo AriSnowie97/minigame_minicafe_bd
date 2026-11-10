@@ -36,17 +36,16 @@ class MainMenuScene:
     # ------------------------------------------------------------------
     def _build_ui(self):
         cx = 880
-        self.btn_play     = Button(pygame.Rect(cx - 150, 245, 300, 56), locale.get("menu.play"),     font_size=28)
-        self.btn_tutorial = Button(pygame.Rect(cx - 150, 312, 300, 50), "Навчання з Арі (День 0)",   font_size=21)
-        self.btn_stats    = Button(pygame.Rect(cx - 150, 374, 300, 50), locale.get("menu.stats"),    font_size=22)
-        self.btn_settings = Button(pygame.Rect(cx - 150, 436, 300, 50), locale.get("menu.settings"), font_size=22)
-        self.btn_quit     = Button(pygame.Rect(cx - 150, 498, 300, 50), locale.get("menu.quit"),     font_size=22)
+        self.btn_play     = Button(pygame.Rect(cx - 150, 260, 300, 64), locale.get("menu.play"),     font_size=30)
+        self.btn_stats    = Button(pygame.Rect(cx - 150, 345, 300, 60), locale.get("menu.stats"),    font_size=26)
+        self.btn_settings = Button(pygame.Rect(cx - 150, 425, 300, 60), locale.get("menu.settings"), font_size=26)
+        self.btn_quit     = Button(pygame.Rect(cx - 150, 505, 300, 60), locale.get("menu.quit"),     font_size=26)
 
         # Картка імені гравця (для рейтингу) у правому верхньому кутку замість кнопок мов
         self.player_name_rect = pygame.Rect(WIDTH - 295, 18, 275, 46)
         self.lang_buttons = []
 
-        self._buttons = [self.btn_play, self.btn_tutorial, self.btn_stats, self.btn_settings, self.btn_quit]
+        self._buttons = [self.btn_play, self.btn_stats, self.btn_settings, self.btn_quit]
 
     def _build_decoration(self):
         # Случайные следы лап
@@ -104,10 +103,6 @@ class MainMenuScene:
             self.player_name = set_player_name(self.player_name)
             target_day = 0 if not is_tutorial_completed() else 1
             self.manager.switch("cafe_hall", day=target_day, money=0, rating=3.0, upgrades={}, player_name=self.player_name)
-
-        if self.btn_tutorial.handle_event(event):
-            self.player_name = set_player_name(self.player_name)
-            self.manager.switch("cafe_hall", day=0, money=0, rating=5.0, upgrades={}, player_name=self.player_name)
 
         if self.btn_stats.handle_event(event):
             self.manager.switch("stats", back="main_menu")

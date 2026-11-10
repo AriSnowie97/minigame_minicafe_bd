@@ -490,6 +490,10 @@ class CafeHallScene:
                 return
 
         if event.type == pygame.KEYDOWN:
+            if self.day == 0 and event.key in (pygame.K_SPACE, pygame.K_RETURN):
+                if self.tutorial_overlay.step in (self.tutorial_overlay.STEP_COMPLETE, self.tutorial_overlay.STEP_COLLECT_COIN):
+                    self.tutorial_overlay._finish_tutorial()
+                    return
             if event.key == pygame.K_ESCAPE:
                 self.manager.switch("main_menu")
             elif event.key in (pygame.K_1, pygame.K_k):

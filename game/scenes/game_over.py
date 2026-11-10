@@ -58,10 +58,7 @@ class GameOverScene:
         self._coins_anim = 0.0
         self.shop_modal.close()
         self.btn_stats.set_text(locale.get("menu.stats"))
-        if self.day == 0:
-            self.btn_next.set_text("Розпочати День 1")
-        else:
-            self.btn_next.set_text(locale.get("game_over.restart" if failed else "game_over.next_day"))
+        self.btn_next.set_text(locale.get("game_over.restart" if failed else "game_over.next_day"))
         self.btn_menu.set_text(locale.get("game_over.main_menu"))
 
         # Звук итогов: победный короткий джингл или грустный сигнал
@@ -210,8 +207,8 @@ class GameOverScene:
             reason_t = assets.render_outlined(f_reason, locale.get(self.fail_reason), (255, 215, 200), (60, 30, 25), 1)
             surface.blit(reason_t, reason_t.get_rect(center=(cx, panel_y + 160)))
 
-        # 8. Фігура помічниці Арі ліворуч від панелі
-        self._draw_ari(surface, panel_x - 160, 680)
+        # 8. Фігура помічниці Арі ліворуч від панелі (притиснута до низу екрана)
+        self._draw_ari(surface, panel_x - 160, HEIGHT + 2)
 
         # 9. Кнопки
         if not self.failed:
@@ -234,17 +231,12 @@ class GameOverScene:
             return
 
         aw, ah = ari_spr.get_size()
-        target_h = 370
+        target_h = 420
         target_w = max(1, int(aw * (target_h / max(1, ah))))
         ari_scaled = pygame.transform.smoothscale(ari_spr, (target_w, target_h))
-        bob = int(math.sin(self._t * 3.0) * 3)
+        bob = int(math.sin(self._t * 2.5) * 2)
 
-        # Тінь
-        sh_surf = pygame.Surface((130, 24), pygame.SRCALPHA)
-        pygame.draw.ellipse(sh_surf, (0, 0, 0, 50), (0, 0, 130, 24))
-        surface.blit(sh_surf, sh_surf.get_rect(center=(x, y - 4 + bob)))
-
-        # Арі
+        # Арі (низ акуратно притиснутий до краю екрана)
         r_ari = ari_scaled.get_rect(midbottom=(x, y + bob))
         surface.blit(ari_scaled, r_ari)
 

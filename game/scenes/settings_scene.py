@@ -9,6 +9,7 @@ from game.core.assets     import assets
 from game.core.localization import locale
 from game.core.audio      import audio
 from game.core.updater    import updater
+from game.core.profile    import set_tutorial_completed, is_tutorial_completed
 from game.ui.button       import Button
 from game.ui.whats_new_modal import WhatsNewModal
 
@@ -38,11 +39,15 @@ class SettingsScene:
 
         # Кнопка оновлень
         btn_update_label = "Оновити гру зараз!" if updater.has_update else "Перевірити оновлення"
-        self.btn_update = Button(pygame.Rect(cx - 130, 432, 260, 40),
-                                 btn_update_label, font_size=17)
+        self.btn_update = Button(pygame.Rect(cx - 130, 428, 260, 36),
+                                 btn_update_label, font_size=16)
 
-        self.btn_back  = Button(pygame.Rect(cx - 110, 502, 220, 46),
-                                locale.get("settings.back"), font_size=22)
+        # Кнопка повтору навчання (День 0)
+        self.btn_tutorial = Button(pygame.Rect(cx - 130, 492, 260, 34),
+                                   "Пройти навчання знову (День 0)", font_size=14)
+
+        self.btn_back  = Button(pygame.Rect(cx - 110, 536, 220, 42),
+                                locale.get("settings.back"), font_size=20)
 
     def _sound_label(self):
         state = locale.get("settings.on") if self.sound_on else locale.get("settings.off")
@@ -97,10 +102,15 @@ class SettingsScene:
                         self.btn_update.set_text("Оновити гру зараз!")
                         self.whats_new_modal.open("update_available")
                     else:
-                        self.check_status = f"У вас найновіша версія ({GAME_VERSION}) ✓"
+                        self.check_status = f"Встановлено найновішу версію ({GAME_VERSION})"
                         self.btn_update.set_text("Перевірити оновлення")
 
                 updater.check(force=True, on_complete=on_done)
+
+        if self.btn_tutorial.handle_event(event):
+            audio.play("ui_click")
+            set_tutorial_completed(False)
+            self.check_status = "Навчання скинуто! При натисканні «Грати» почнеться День 0."
 
     def update(self, dt: float):
         if self.whats_new_modal.is_open:
@@ -111,6 +121,7 @@ class SettingsScene:
         self.btn_sound.update(dt)
         self.btn_music.update(dt)
         self.btn_update.update(dt)
+        self.btn_tutorial.update(dt)
         for _, _, btn in self.lang_btns:
             btn.update(dt)
 
@@ -166,13 +177,16 @@ class SettingsScene:
         # Підпис статусу версії
         f_info = assets.font_ui(12)
         stat_text = self.check_status or f"MiniCafe {GAME_VERSION}"
-        stat_col = (80, 160, 90) if "✓" in stat_text else ((210, 110, 40) if "Доступне" in stat_text else C.LIGHT_GRAY)
+        stat_col = (80, 160, 90) if ("найновіш" in stat_text or "скинуто" in stat_text) else ((210, 110, 40) if "Доступне" in stat_text else C.LIGHT_GRAY)
         st_t = f_info.render(stat_text, True, stat_col)
-        surface.blit(st_t, st_t.get_rect(center=(cx, 482)))
+        surface.blit(st_t, st_t.get_rect(center=(cx, 472)))
 
-        # 8. Кнопка Назад
+        # 8. Кнопка перезапуску навчання
+        self.btn_tutorial.draw(surface)
+
+        # 9. Кнопка Назад
         self.btn_back.draw(surface)
 
-        # 9. Модальне вікно оновлення/новин, якщо відкрите
+        # 10. Модальне вікно оновлення/новин, якщо відкрите
         if self.whats_new_modal.is_open:
             self.whats_new_modal.draw(surface)
