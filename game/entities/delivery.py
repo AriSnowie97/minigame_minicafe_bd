@@ -46,21 +46,24 @@ class DeliveryManager:
         self.state = self.STATE_IDLE
         self.state_time = 0.0
 
-        # Позиція та рух вантажівки (координати зала)
-        self.van_x = -320.0
-        self.van_target_x = 145.0
-        self.van_y = 650.0
-        self.van_speed = 230.0
+        # Позиція та рух вантажівки (верхній лівий майданчик вулиці біля кафе)
+        self.van_x = -240.0
+        self.van_start_x = -240.0
+        self.van_target_x = 290.0
+        self.van_start_y = 330.0
+        self.van_target_y = 210.0
+        self.van_y = self.van_start_y
+        self.van_speed = 250.0
         self.van_honked = False
 
         # Позиція та навігація котика-кур'єра
-        self.courier_x = 240.0
-        self.courier_y = 605.0
+        self.courier_x = 345.0
+        self.courier_y = 175.0
         self.courier_speed = 175.0
         self.courier_walk_t = 0.0
         self.courier_room = "hall"   # "hall" або "kitchen"
         self.courier_facing_right = True
-        self.courier_behind_wall = False
+        self.courier_behind_wall = True
 
         # Точки маршруту: (x, y, behind_wall, speed_mult)
         self.waypoints: List[Tuple[float, float, bool, float]] = []
@@ -90,7 +93,8 @@ class DeliveryManager:
         self.current = self.queue.pop(0)
         self.state = self.STATE_VAN_IN
         self.state_time = 0.0
-        self.van_x = -320.0
+        self.van_x = self.van_start_x
+        self.van_y = self.van_start_y
         self.van_honked = False
         self.use_push_cart = bool(self.current.is_chef or random.random() < 0.35)
         audio.play("door_bell")
@@ -116,22 +120,25 @@ class DeliveryManager:
         if self.state == self.STATE_VAN_IN:
             if self.van_x < self.van_target_x:
                 dist = self.van_target_x - self.van_x
-                spd = max(65.0, min(self.van_speed, dist * 2.3))
+                spd = max(70.0, min(self.van_speed, dist * 2.3))
                 self.van_x += spd * dt
+                prog = max(0.0, min(1.0, (self.van_x - self.van_start_x) / max(1.0, self.van_target_x - self.van_start_x)))
+                self.van_y = self.van_start_y + (self.van_target_y - self.van_start_y) * prog
                 self._emit_exhaust(dt, forward=True)
             else:
                 self.van_x = self.van_target_x
+                self.van_y = self.van_target_y
                 if not self.van_honked:
                     self.van_honked = True
                     audio.play("service_bell")
                 if self.state_time > 0.45:
-                    # Двері машинки відчиняються, кур'єр виходить на тротуар біля кабіни
+                    # Двері машинки відчиняються, кур'єр виходить на бруківку поруч із вантажівкою
                     self.state = self.STATE_COURIER_DELIVER
                     self.state_time = 0.0
                     self.courier_room = "hall"
-                    self.courier_x = self.van_x + 95.0
-                    self.courier_y = self.van_y - 45.0
-                    self.courier_behind_wall = False
+                    self.courier_x = self.van_target_x + 55.0
+                    self.courier_y = self.van_target_y - 32.0
+                    self.courier_behind_wall = True
                     self._setup_delivery_waypoints()
 
         # -------------------------------------------------------------
@@ -173,8 +180,10 @@ class DeliveryManager:
         # -------------------------------------------------------------
         elif self.state == self.STATE_VAN_OUT:
             self.van_x -= self.van_speed * 1.35 * dt
+            prog = max(0.0, min(1.0, (self.van_x - self.van_start_x) / max(1.0, self.van_target_x - self.van_start_x)))
+            self.van_y = self.van_start_y + (self.van_target_y - self.van_start_y) * prog
             self._emit_exhaust(dt, forward=False)
-            if self.van_x < -360.0:
+            if self.van_x < -280.0:
                 self._start_next_order()
 
     def _advance_courier_along_waypoints(self, dt: float, ring_door_on_enter: bool = False) -> bool:
@@ -214,15 +223,11 @@ class DeliveryManager:
         )
 
     def _setup_delivery_waypoints(self):
-        """Маршрут по зовнішній бруківці зліва навколо верхньої стіни до вхідних дверей і на килимок"""
+        """Маршрут від припаркованої зверху ліворуч вантажівки навколо стіни до вхідних дверей"""
         self.waypoints = [
-            (238.0, 560.0, False, 1.0),  # Збоку від кабіни на бруківці
-            (242.0, 420.0, False, 1.0),  # Вгору по зовнішній бруківці вздовж лівої стіни
-            (250.0, 280.0, False, 1.0),  # Повз лівий кут будівлі ззовні
-            (285.0, 190.0, False, 1.0),  # Заокруглення за верхнім лівим кутом
-            (335.0, 152.0, True,  1.0),  # Зовнішня доріжка нижче HUD та вище краю стіни
-            (395.0, 140.0, True,  1.0),  # Над верхньою лівою стіною ззовні (повністю видно)
-            (455.0, 142.0, True,  1.0),  # Спуск по бруківці у бік дверей
+            (375.0, 150.0, True,  1.0),  # Обхід передньої частини вантажівки по бруківці
+            (415.0, 140.0, True,  1.0),  # Вздовж верхнього краю вулиці (нижче HUD)
+            (465.0, 142.0, True,  1.0),  # Напрямок у бік вхідної стіни
             (515.0, 152.0, True,  1.0),  # Захід за задню стіну над дверима
             (555.0, 428.0, True,  1.8),  # Підхід ззовні до порогу дверей (за стіною)
             (595.0, 446.0, False, 1.0),  # Крок усередину через двері на килимок!
@@ -230,20 +235,16 @@ class DeliveryManager:
         self.waypoint_idx = 0
 
     def _setup_return_waypoints(self):
-        """Зворотний шлях: вихід у двері -> зовнішня бруківка навколо кафе -> повернення до вантажівки"""
-        van_side_x = max(180.0, self.van_x + 95.0)
-        van_side_y = self.van_y - 45.0
+        """Зворотний шлях: вихід у двері -> за стіною нагору до припаркованої вантажівки"""
+        van_side_x = self.van_target_x + 55.0
+        van_side_y = self.van_target_y - 32.0
         self.waypoints = [
             (555.0, 428.0, False, 1.0),  # Вихід із зали назад у двері
-            (515.0, 152.0, True,  1.8),  # Підйом ззовні за стіною на тротуар
-            (455.0, 142.0, True,  1.0),
-            (395.0, 140.0, True,  1.0),
-            (335.0, 152.0, True,  1.0),
-            (285.0, 190.0, False, 1.0),
-            (250.0, 280.0, False, 1.0),
-            (242.0, 420.0, False, 1.0),
-            (238.0, 560.0, False, 1.0),
-            (van_side_x, van_side_y, False, 1.0),
+            (515.0, 152.0, True,  1.8),  # Підйом ззовні за стіною на бруківку
+            (465.0, 142.0, True,  1.0),
+            (415.0, 140.0, True,  1.0),
+            (375.0, 150.0, True,  1.0),
+            (van_side_x, van_side_y, True, 1.0),
         ]
         self.waypoint_idx = 0
 
@@ -312,39 +313,40 @@ class DeliveryManager:
         vy = int(self.van_y)
 
         # Тінь вантажівки на бруківці
-        shadow = pygame.Surface((215, 36), pygame.SRCALPHA)
-        pygame.draw.ellipse(shadow, (0, 0, 0, 75), (0, 0, 215, 36))
+        shadow = pygame.Surface((180, 30), pygame.SRCALPHA)
+        pygame.draw.ellipse(shadow, (0, 0, 0, 75), (0, 0, 180, 30))
         surface.blit(shadow, shadow.get_rect(center=(vx, vy + 2)))
 
-        # 2. Вибір спрайту: закритий чи з відкритими дверима
+        # 2. Вибір спрайту: закритий чи з відкритими дверима (акуратний масштаб для верхньої вулиці)
+        van_h = 142
+        half_w = 90
         if self.state in (self.STATE_COURIER_DELIVER, self.STATE_COURIER_HANDOFF, self.STATE_COURIER_RETURN):
             # Вантажівка стоїть на розвантаженні — двері кузова відчинені!
-            van_spr = assets.image_by_height("vehicle_truck_open", 170)
+            van_spr = assets.image_by_height("vehicle_truck_open", van_h)
             if van_spr and not getattr(van_spr, "_is_placeholder", False):
-                # Фіксуємо правий край кабіни, щоб колеса й кабіна стояли на місці
-                right_edge = vx + 104
+                right_edge = vx + half_w
                 surface.blit(van_spr, van_spr.get_rect(bottomright=(right_edge, vy)))
             else:
                 self._draw_procedural_van(surface, vx, vy)
         elif self.state == self.STATE_VAN_OUT:
             # Машинка розвернулася та їде ліворуч — закрита, віддзеркалена
-            van_spr = assets.image_by_height("vehicle_truck_closed", 170)
+            van_spr = assets.image_by_height("vehicle_truck_closed", van_h)
             if van_spr and not getattr(van_spr, "_is_placeholder", False):
                 flipped_van = pygame.transform.flip(van_spr, True, False)
-                left_edge = vx - 104
+                left_edge = vx - half_w
                 surface.blit(flipped_van, flipped_van.get_rect(bottomleft=(left_edge, vy)))
             else:
                 self._draw_procedural_van(surface, vx, vy, flip=True)
         else:
             # Машинка заїжджає праворуч — закрита
-            van_spr = assets.image_by_height("vehicle_truck_closed", 170)
+            van_spr = assets.image_by_height("vehicle_truck_closed", van_h)
             if van_spr and not getattr(van_spr, "_is_placeholder", False):
-                right_edge = vx + 104
+                right_edge = vx + half_w
                 surface.blit(van_spr, van_spr.get_rect(bottomright=(right_edge, vy)))
             else:
                 self._draw_procedural_van(surface, vx, vy)
 
-        # 3. Плашка-хмаринка над машинкою при прибутті
+        # 3. Плашка-хмаринка над машинкою при прибутті (не перекриває верхній HUD)
         if self.state in (self.STATE_VAN_IN, self.STATE_COURIER_DELIVER) and self.van_x >= self.van_target_x - 10:
             f = assets.font_ui(12, bold=True)
             bubble_txt = assets.render_outlined(f, "Біп-біп! Доставка :3", C.WHITE, (45, 40, 35), 1)
@@ -354,7 +356,7 @@ class DeliveryManager:
             pygame.draw.rect(bsurf, C.WHITE, (0, 0, bw, bh), 1, border_radius=8)
             pygame.draw.polygon(bsurf, (*C.TERRACOTTA, 240), [(bw // 2 - 4, bh), (bw // 2 + 4, bh), (bw // 2, bh + 4)])
             bsurf.blit(bubble_txt, (9, 3))
-            surface.blit(bsurf, (vx - bw // 2, vy - 150))
+            surface.blit(bsurf, (vx - bw // 2, max(46, vy - 150)))
 
     def draw_courier(self, surface: pygame.Surface, room_name: str, offset_x: int = 0):
         """Отрисовка котика-вантажника у залі або на кухні"""
